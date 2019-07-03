@@ -20,7 +20,7 @@ class RegisterCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'shareCache:register';
+    protected $signature = 'sharecache:register';
 
     /**
      * The console command description.
@@ -43,26 +43,42 @@ class RegisterCommand extends Command
 
     protected function setServer()
     {
+        $name = ShareCacheManager::getConfig('name');
+        $url = ShareCacheManager::getConfig('url');
+
+        if (!$name || !$url) return;
+
+        $models = ShareCacheManager::getModels();
+
         $servers = ShareCacheManager::getServers();
 
-        $config = ShareCacheManager::getConfig();
+        $server = compact('url', 'models');
+        if (isset($servers[$name])) {
+            $this->removeModels($name, array_diff_key($servers[$name]['models'], $server['models']));
+        }
+        $servers[$name] = $server;
 
-        $save_keys = ['models', 'url'];
-
-        $servers[$config['server']] = array_intersect_key($config, array_flip($save_keys));
-
-        $cache_key = ShareCacheManager::getConfig('cache_prefix', 'sharecache') . ':servers';
-
+        $cache_key = $this->getCachePrefix() . 's';
         Redis::set($cache_key, json_encode($servers));
-
         $this->info('register success.');
+    }
+
+    protected function removeModels($name, $models)
+    {
+        $prefix = $this->getCachePrefix() . ":$name:model:";
+        foreach ($models as $name => $model) {
+            $key = $prefix . $name;
+            if (Redis::exists($key)) {
+                Redis::del($key);
+                $this->info("remove model $name.");
+            }
+        }
     }
 
     protected function showServers()
     {
         $servers = ShareCacheManager::getServers();
-
-        $prefix = ShareCacheManager::getConfig('cache_prefix', 'sharecache') . ':server';
+        $prefix = $this->getCachePrefix();
 
         $this->table(
             ['server', 'url', 'model', 'count'],
@@ -72,5 +88,10 @@ class RegisterCommand extends Command
                 });
             })
         );
+    }
+
+    protected function getCachePrefix()
+    {
+        return ShareCacheManager::getConfig('cache_prefix', 'sharecache') . ':server';
     }
 }

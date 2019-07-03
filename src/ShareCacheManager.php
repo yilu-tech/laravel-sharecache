@@ -3,6 +3,7 @@
 
 namespace YiluTech\ShareCache;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Redis;
 
 /**
@@ -33,7 +34,7 @@ class ShareCacheManager
 
         $this->server = new ShareCacheServer(static::getConfig());
 
-        $this->serverInstances[$this->server->getServerName()] = $this->server;
+        $this->serverInstances[$this->server->getName()] = $this->server;
 
         $this->servers = static::getServers();
     }
@@ -41,13 +42,8 @@ class ShareCacheManager
     public static function getConfig($name = null, $default = null)
     {
         if (!static::$config) {
-            static::$config = app()['config']['sharecache'];
+            static::$config = app()['config']['sharecache'] ?: [];
         };
-
-        if (!static::$config) {
-            throw new ShareCacheException('share cache config not define.');
-        }
-
         return Util::array_get(static::$config, $name, $default);
     }
 
@@ -58,6 +54,35 @@ class ShareCacheManager
             return json_decode($servers, JSON_OBJECT_AS_ARRAY);
         }
         return array();
+    }
+
+    public static function getModels($config = null)
+    {
+        if (!$config) {
+            $config = static::getConfig();
+        }
+        return array_merge(
+            $config['models'] ?? [],
+            array_filter(array_map(function ($repository) {
+                return ShareCacheManager::getRepositoryModel($repository);
+            }, $config['repositories'] ?? []))
+        );
+    }
+
+    protected static function getRepositoryModel(string $repository)
+    {
+        $reflection = new \ReflectionClass($repository);
+        if (!$reflection->hasMethod('__construct')) {
+            return null;
+        }
+        $reflectionMethod = $reflection->getMethod('__construct');
+        foreach ($reflectionMethod->getParameters() as $parameter) {
+            $type = $parameter->getType();
+            if ($type && is_subclass_of($type->getName(), Model::class)) {
+                return $type->getName();
+            }
+        }
+        return null;
     }
 
     public static function getModelName($model)

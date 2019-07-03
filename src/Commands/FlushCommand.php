@@ -19,7 +19,7 @@ class FlushCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'shareCache:flush {server?*} {--model=*}';
+    protected $signature = 'sharecache:flush {server?*} {--model=*}';
 
     /**
      * The console command description.

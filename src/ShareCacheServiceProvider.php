@@ -13,7 +13,7 @@ use YiluTech\ShareCache\Commands\RegisterCommand;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
-class ShareCacheServiceProviders extends ServiceProvider
+class ShareCacheServiceProvider extends ServiceProvider
 {
     public function boot()
     {
@@ -40,8 +40,7 @@ class ShareCacheServiceProviders extends ServiceProvider
 
     protected function registerModelEvent()
     {
-        $models = Util::array_get($this->app['config']['sharecache'], 'models', []);
-        foreach ($models as $model) {
+        foreach (ShareCacheManager::getModels() as $model) {
             $model::created([ModelEventListener::class, 'created']);
             $model::updated([ModelEventListener::class, 'updated']);
             $model::deleted([ModelEventListener::class, 'deleted']);

@@ -6,15 +6,17 @@
  * Time: 11:34
  */
 
-
 return [
 
-    'server' => '',
+    'name' => '',
 
     'url' => '',
 
     'models' => [       // 'alias' => 'class'
 
-    ]
+    ],
 
+    'repositories' => [
+
+    ]
 ];

@@ -19,17 +19,15 @@ class ShareCacheServer
 
     public function __construct($config)
     {
-        if (empty($config['server'])) {
+        if (empty($config['name'])) {
             throw new ShareCacheException('share cache server name not define.');
         }
-        $this->name = $config['server'];
-
+        $this->name = $config['name'];
+        $this->models = ShareCacheManager::getModels($config);
         $this->config = $config;
-
-        $this->models = Util::array_get($config, 'models', []);
     }
 
-    public function getServerName()
+    public function getName()
     {
         return $this->name;
     }
@@ -65,7 +63,7 @@ class ShareCacheServer
 
     /**
      * @param string
-     * @param $model\Illuminate\Database\Eloquent\Model
+     * @param $model \Illuminate\Database\Eloquent\Model
      * @return $string
      */
     public function setModel($name, $model)
