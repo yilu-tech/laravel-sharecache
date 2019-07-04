@@ -7,9 +7,9 @@ use Illuminate\Http\Request;
 
 class ShareCacheController
 {
-    public function put(ShareCacheManager $shareCacheManager, Request $request)
+    public function put(ShareCacheServiceManager $shareCacheManager, Request $request)
     {
-        return $shareCacheManager->getServer()->put(
+        return $shareCacheManager->server()->put(
             $request->input('name'),
             $request->input('key')
         );

@@ -8,6 +8,7 @@
 
 namespace YiluTech\ShareCache;
 
+use YiluTech\ShareCache\Facade\ShareCache;
 
 class ModelEventListener
 {
@@ -16,9 +17,7 @@ class ModelEventListener
      */
     public static function saved($model)
     {
-        if ($name = ShareCacheManager::getModelName(get_class($model))) {
-            app(ShareCacheManager::class)->getServer()->setModel($name, $model);
-        }
+        static::deleted($model);
     }
 
     /**
@@ -26,7 +25,7 @@ class ModelEventListener
      */
     public static function created($model)
     {
-        static::saved($model);
+        static::deleted($model);
     }
 
     /**
@@ -34,7 +33,7 @@ class ModelEventListener
      */
     public static function updated($model)
     {
-        static::saved($model);
+        static::deleted($model);
     }
 
     /**
@@ -42,8 +41,6 @@ class ModelEventListener
      */
     public static function deleted($model)
     {
-        if ($name = ShareCacheManager::getModelName(get_class($model))) {
-            app(ShareCacheManager::class)->getServer()->delModel($name, $model);
-        }
+        ShareCache::service()->delByModel($model);
     }
 }

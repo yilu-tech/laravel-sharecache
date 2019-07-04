@@ -8,7 +8,7 @@
 
 namespace YiluTech\ShareCache\Commands;
 
-use YiluTech\ShareCache\ShareCacheManager;
+use YiluTech\ShareCache\ShareCacheServiceManager;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Redis;
 
@@ -19,7 +19,7 @@ class FlushCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'sharecache:flush {server?*} {--model=*}';
+    protected $signature = 'sharecache:flush {--server=*} {--object=*}';
 
     /**
      * The console command description.
@@ -36,20 +36,20 @@ class FlushCommand extends Command
     public function handle()
     {
         $this->flushServers();
-        $this->showServers();
+
+        $this->call('sharecache:show');
     }
 
     protected function flushServers()
     {
-        $server_keys = $this->argument('server');
-        $cache_key = $this->getCachePrefix() . 's';
+        $server_keys = $this->option('server');
+        $cache_key = ShareCacheServiceManager::getCachePrefix() . 's';
 
-        $servers = ShareCacheManager::getServers();
+        $servers = ShareCacheServiceManager::getServers();
         $empty = !count($server_keys);
         foreach ($servers as $name => $server) {
-            if ($empty || array_search($name, $server_keys) !== false) {
-                $this->flushServer($name, $server);
-                unset($servers[$name]);
+            if ($empty || in_array($name, $server_keys)) {
+                $this->flushServer($servers, $name);
             }
         }
         if (count($servers)) {
@@ -59,39 +59,22 @@ class FlushCommand extends Command
         }
     }
 
-    protected function flushServer($name, $server)
+    protected function flushServer(&$servers, $name)
     {
-        $model_keys = $this->option('model');
+        $object_keys = $this->option('object');
+        $empty = !count($object_keys);
 
-        $empty = !count($model_keys);
+        if ($empty) {
+            unset($servers[$name]);
+            return;
+        }
 
-        $prefix = $this->getCachePrefix();
-
-        foreach ($server['models'] as $key => $model) {
-            if ($empty || array_search($key, $model_keys)) {
-                Redis::del("$prefix:$name:model:$key");
-                $this->info("server:[$name] model:$key flushed.");
+        $prefix = ShareCacheServiceManager::getCachePrefix();
+        foreach ($servers[$name]['objects'] as $key => $object) {
+            if ($empty || in_array($key, $object_keys)) {
+                Redis::del("$prefix:$name:{$object['type']}:$key");
+                $this->info("server:[$name] {$object['type']}:$key flushed.");
             }
         }
-    }
-
-    protected function showServers()
-    {
-        $servers = ShareCacheManager::getServers();
-        $prefix = $this->getCachePrefix();
-
-        $this->table(
-            ['server', 'url', 'model', 'count'],
-            collect($servers)->flatMap(function ($server, $server_name) use ($prefix) {
-                return collect($server['models'])->map(function ($model, $name) use ($server, $server_name, $prefix) {
-                    return [$server_name, $server['url'], "$name => $model", Redis::hlen("$prefix:$server_name:model:$name")];
-                });
-            })
-        );
-    }
-
-    protected function getCachePrefix()
-    {
-        return ShareCacheManager::getConfig('cache_prefix', 'sharecache') . ':server';
     }
 }

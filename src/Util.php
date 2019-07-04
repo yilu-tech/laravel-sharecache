@@ -9,6 +9,8 @@
 namespace YiluTech\ShareCache;
 
 
+use Illuminate\Database\Eloquent\Model;
+
 class Util
 {
     public static function array_get($array, $name = null, $default = null)
@@ -17,5 +19,27 @@ class Util
             return $array;
         }
         return $array[$name] ?? $default;
+    }
+
+    public static function getRepositoryProviders($repository)
+    {
+        $reflection = new \ReflectionClass($repository);
+
+        if (!$reflection->hasMethod('__construct')) {
+            return null;
+        }
+
+        $reflectionMethod = $reflection->getMethod('__construct');
+
+        $models = array();
+
+        foreach ($reflectionMethod->getParameters() as $parameter) {
+            $type = $parameter->getType();
+            if ($type && is_subclass_of($type->getName(), Model::class)) {
+                $models[] = $type->getName();
+            }
+        }
+
+        return $models;
     }
 }

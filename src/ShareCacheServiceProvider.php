@@ -10,6 +10,7 @@ namespace YiluTech\ShareCache;
 
 use YiluTech\ShareCache\Commands\FlushCommand;
 use YiluTech\ShareCache\Commands\RegisterCommand;
+use YiluTech\ShareCache\Commands\ShowCommand;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -22,14 +23,15 @@ class ShareCacheServiceProvider extends ServiceProvider
 
     public function register()
     {
-        $this->app->singleton(ShareCacheManager::class, function ($app) {
-            return new ShareCacheManager($app);
+        $this->app->singleton(ShareCacheServiceManager::class, function ($app) {
+            return new ShareCacheServiceManager($app);
         });
 
         if ($this->app->runningInConsole()) {
             $this->commands([
                 RegisterCommand::class,
-                FlushCommand::class
+                FlushCommand::class,
+                ShowCommand::class
             ]);
         }
 
@@ -40,7 +42,7 @@ class ShareCacheServiceProvider extends ServiceProvider
 
     protected function registerModelEvent()
     {
-        foreach (ShareCacheManager::getModels() as $model) {
+        foreach (ShareCacheServiceManager::getModels() as $model) {
             $model::created([ModelEventListener::class, 'created']);
             $model::updated([ModelEventListener::class, 'updated']);
             $model::deleted([ModelEventListener::class, 'deleted']);

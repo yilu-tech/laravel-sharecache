@@ -8,9 +8,10 @@
 
 namespace YiluTech\ShareCache\Commands;
 
-use YiluTech\ShareCache\ShareCacheManager;
+use YiluTech\ShareCache\ShareCacheServiceManager;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Redis;
+use YiluTech\ShareCache\Util;
 
 
 class RegisterCommand extends Command
@@ -37,37 +38,33 @@ class RegisterCommand extends Command
     public function handle()
     {
         $this->setServer();
-
-        $this->showServers();
+        $this->call('sharecache:show');
     }
 
     protected function setServer()
     {
-        $name = ShareCacheManager::getConfig('name');
-        $url = ShareCacheManager::getConfig('url');
+        $name = ShareCacheServiceManager::getConfig('name');
+        $url = ShareCacheServiceManager::getConfig('url');
 
         if (!$name || !$url) return;
 
-        $models = ShareCacheManager::getModels();
+        $objects = $this->getObjects(ShareCacheServiceManager::getConfig());
+        $servers = ShareCacheServiceManager::getServers();
 
-        $servers = ShareCacheManager::getServers();
-
-        $server = compact('url', 'models');
         if (isset($servers[$name])) {
-            $this->removeModels($name, array_diff_key($servers[$name]['models'], $server['models']));
+            $this->removeObjects($name, array_diff_key($servers[$name]['objects'] ?? [], $objects));
         }
-        $servers[$name] = $server;
+        $servers[$name] = compact('url', 'objects');
 
-        $cache_key = $this->getCachePrefix() . 's';
+        $cache_key = ShareCacheServiceManager::getCachePrefix() . 's';
         Redis::set($cache_key, json_encode($servers));
         $this->info('register success.');
     }
 
-    protected function removeModels($name, $models)
+    protected function removeObjects($server, $objects)
     {
-        $prefix = $this->getCachePrefix() . ":$name:model:";
-        foreach ($models as $name => $model) {
-            $key = $prefix . $name;
+        foreach ($objects as $name => $object) {
+            $key = ShareCacheServiceManager::getCachePrefix() . ":$server:{$object['type']}:$name";
             if (Redis::exists($key)) {
                 Redis::del($key);
                 $this->info("remove model $name.");
@@ -75,23 +72,15 @@ class RegisterCommand extends Command
         }
     }
 
-    protected function showServers()
+    public function getObjects($config)
     {
-        $servers = ShareCacheManager::getServers();
-        $prefix = $this->getCachePrefix();
-
-        $this->table(
-            ['server', 'url', 'model', 'count'],
-            collect($servers)->flatMap(function ($server, $server_name) use ($prefix) {
-                return collect($server['models'])->map(function ($model, $name) use ($server, $server_name, $prefix) {
-                    return [$server_name, $server['url'], "$name => $model", Redis::hlen("$prefix:$server_name:model:$name")];
-                });
-            })
-        );
-    }
-
-    protected function getCachePrefix()
-    {
-        return ShareCacheManager::getConfig('cache_prefix', 'sharecache') . ':server';
+        $objects = array();
+        foreach ($config['models'] ?? [] as $name => $model) {
+            $objects[$name] = ['type' => 'model', 'class' => $model];
+        }
+        foreach ($config['repositories'] ?? [] as $name => $repository) {
+            $objects[$name] = ['type' => 'repository', 'class' => $repository, 'models' => Util::getRepositoryProviders($repository)];
+        }
+        return $objects;
     }
 }
