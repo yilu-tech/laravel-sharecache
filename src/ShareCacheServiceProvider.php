@@ -58,7 +58,7 @@ class ShareCacheServiceProvider extends ServiceProvider
         $options = array_merge($defaultOptions, $this->app['config']['sharecache']['route_option'] ?? []);
 
         Route::group($options, function ($router) {
-            Route::post('sharecache/sync', 'ShareCacheController@sync')->name('sharecache.sync');
+            Route::post('sharecache/put', 'ShareCacheController@put')->name('sharecache.put');
         });
     }
 

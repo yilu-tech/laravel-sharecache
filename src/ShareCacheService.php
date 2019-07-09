@@ -61,6 +61,9 @@ class ShareCacheService
 
     public function put($name, $key)
     {
+        if (empty($this->objects[$name])) {
+            throw new \Exception("model or repository \"$name\" not define.");
+        }
         if ($this->name === ShareCacheServiceManager::getConfig('name')) {
             return $this->callPut($name, $key);
         } else {
@@ -113,7 +116,6 @@ class ShareCacheService
         } catch (\Exception $exception) {
             throw new ShareCacheException('set remote error.');
         }
-
         if ($content) {
             $content = json_decode($content, JSON_OBJECT_AS_ARRAY);
         }
@@ -121,12 +123,16 @@ class ShareCacheService
     }
 
     /**
-     * @param string $model
+     * @param string $object
      * @return \Illuminate\Cache\RedisTaggedCache|\Illuminate\Contracts\Cache\Repository
+     * @throws \Exception
      */
-    protected function getCache($model)
+    protected function getCache($object)
     {
-        return ShareCacheServiceManager::getCache([$this->name, $model]);
+        if (empty($this->objects[$object])) {
+            throw new \Exception("model or repository \"$object\" not define.");
+        }
+        return ShareCacheServiceManager::getCache([$this->name, $object]);
     }
 
     /**

@@ -16,6 +16,10 @@ return [
         'ttl' => 1209600
     ],
 
+    'route_option' => [
+
+    ],
+
     'models' => [       // 'alias' => 'class'
 
     ],
