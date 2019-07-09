@@ -143,25 +143,24 @@ class ShareCacheService
      */
     protected function getObjectData($object, $key)
     {
-        if (method_exists($object['class'], 'getShareCache')) {
-            $data = $object['class']::getShareCache($key);
+        $target = app($object['class']);
+        if (method_exists($target, 'getShareCacheData')) {
+            $data = $target->getShareCacheData($key);
             if ($data === null || $data === false) {
                 return null;
             }
             if (is_array($data)) {
                 $data = json_encode($data);
             }
-            if (!is_string($data)) {
+            if (is_object($data)) {
                 throw new ShareCacheException('model or repository store data type error.');
             }
             return $data;
         }
-
-        if ($object['type'] === 'model') {
-            $data = $object['class']::query()->find($key);
+        if ($target instanceof Model) {
+            $data = $target->newQuery()->find($key);
             return $data ? $data->toJson() : null;
         }
-
         throw new ShareCacheException('model or repository serialization function not define.');
     }
 }

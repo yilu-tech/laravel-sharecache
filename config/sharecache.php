@@ -9,7 +9,7 @@
 return [
     'name' => '',
 
-    'url' => '',
+    'url' => env('APP_URL'),
 
     'cache' => [
         'prefix' => 'sharecache',
