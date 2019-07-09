@@ -83,7 +83,7 @@ class ShareCacheService
             if (($object['type'] === 'model' && $object['class'] === $class) ||
                 ($object['type'] === 'repository' && in_array($class, $object['models']))) {
 
-                $this->getCache($object['type'])->flush();
+                $this->getCache($name)->flush();
 
             }
         }
@@ -97,7 +97,7 @@ class ShareCacheService
 
         $ttl = ShareCacheServiceManager::getConfig('cache', [])['ttl'] ?? 1209600;
 
-        $this->getCache($object['type'])->put($key, $data, $ttl);
+        $this->getCache($name)->put($key, $data, $ttl);
 
         return $data;
     }

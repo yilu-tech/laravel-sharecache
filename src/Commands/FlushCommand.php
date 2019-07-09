@@ -68,7 +68,7 @@ class FlushCommand extends Command
 
         foreach ($servers[$name]['objects'] as $key => $object) {
             if ($empty || in_array($key, $object_keys)) {
-                ShareCacheServiceManager::getCache([$name, $object['type']])->flush();
+                ShareCacheServiceManager::getCache([$name, $key])->flush();
                 $this->info("server:[$name] {$object['type']}:$key flushed.");
             }
         }

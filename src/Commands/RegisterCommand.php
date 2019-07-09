@@ -65,7 +65,7 @@ class RegisterCommand extends Command
     protected function removeObjects($server, $objects)
     {
         foreach ($objects as $name => $object) {
-            ShareCacheServiceManager::getCache([$server, $object['type']])->flush();
+            ShareCacheServiceManager::getCache([$server, $name])->flush();
             $this->info("remove model $name.");
         }
     }
