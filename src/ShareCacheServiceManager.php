@@ -3,7 +3,7 @@
 
 namespace YiluTech\ShareCache;
 
-use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Class SharedCache
@@ -21,6 +21,7 @@ class ShareCacheServiceManager
     protected $serverInstances = array();
 
     protected static $config;
+    protected static $cache;
 
     public function __construct($app)
     {
@@ -38,8 +39,7 @@ class ShareCacheServiceManager
 
     public static function getServers()
     {
-        $key = static::getConfig('cache_prefix', 'sharecache') . ':servers';
-        if ($servers = Redis::get($key)) {
+        if ($servers = static::getCache()->get('servers')) {
             return json_decode($servers, JSON_OBJECT_AS_ARRAY);
         }
         return array();
@@ -59,9 +59,17 @@ class ShareCacheServiceManager
         )));
     }
 
-    public static function getCachePrefix()
+    /**
+     * @param array $tags
+     * @return \Illuminate\Contracts\Cache\Repository | \Illuminate\Cache\RedisTaggedCache
+     */
+    public static function getCache($tags = null)
     {
-        return static::getConfig('cache_prefix', 'sharecache') . ':server';
+        if (!static::$cache) {
+            static::$cache = Cache::store('redis');
+            static::$cache->setPrefix(static::getConfig('cache', [])['prefix'] ?? 'sharecache');
+        }
+        return $tags ? static::$cache->tags($tags) : static::$cache;
     }
 
     /**

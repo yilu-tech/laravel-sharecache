@@ -10,7 +10,6 @@ namespace YiluTech\ShareCache\Commands;
 
 use YiluTech\ShareCache\ShareCacheServiceManager;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Redis;
 
 class ShowCommand extends Command
 {
@@ -36,7 +35,6 @@ class ShowCommand extends Command
     public function handle()
     {
         $servers = ShareCacheServiceManager::getServers();
-        $prefix = ShareCacheServiceManager::getCachePrefix();
 
         $except = $this->option('except');
 
@@ -53,7 +51,7 @@ class ShowCommand extends Command
             $preg = "/$preg/";
         }
 
-        $objects = $servers->flatMap(function ($server, $server_name) use ($prefix, $preg, $except) {
+        $objects = $servers->flatMap(function ($server, $server_name) use ($preg, $except) {
             $objects = collect($server['objects']);
             if ($preg) {
                 $objects = $objects->filter(function ($object, $name) use ($preg, $except) {
@@ -61,11 +59,11 @@ class ShowCommand extends Command
                 });
             }
 
-            return $objects->map(function ($object, $name) use ($server, $server_name, $prefix) {
-                return [$server_name, $server['url'], "$name => {$object['class']}", Redis::hlen("$prefix:$server_name:{$object['type']}:$name")];
+            return $objects->map(function ($object, $name) use ($server, $server_name) {
+                return [$server_name, $server['url'], "$name => {$object['class']}"];
             });
         });
 
-        $this->table(['server', 'url', 'object', 'count'], $objects);
+        $this->table(['server', 'url', 'object'], $objects);
     }
 }

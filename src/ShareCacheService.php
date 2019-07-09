@@ -4,7 +4,6 @@ namespace YiluTech\ShareCache;
 
 use GuzzleHttp\Client;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Redis;
 
 /**
  * Class SharedCache
@@ -31,21 +30,25 @@ class ShareCacheService
     }
 
     /**
-     * @param $name string
-     * @param $key string
-     * @return false|array|null
-     * @throws ShareCacheException
+     * @param $name
+     * @param $key
+     * @return false|mixed|string|null
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function get($name, $key)
     {
-        $value = Redis::hget($this->getCacheKey($name), $key);
+        $value = $this->getCache($name)->get($key);
 
         if ($value === null) {
             $value = $this->put($name, $key);
         }
 
         if ($value) {
-            $value = json_decode($value, JSON_OBJECT_AS_ARRAY);
+            try {
+                $value = json_decode($value, JSON_OBJECT_AS_ARRAY);
+            } catch (\Exception $exception) {
+                $value = null;
+            }
         }
 
         return $value;
@@ -53,7 +56,7 @@ class ShareCacheService
 
     public function has($name, $key)
     {
-        return Redis::hexists($this->getCacheKey($name), $key);
+        return $this->getCache($name)->has($key);
     }
 
     public function put($name, $key)
@@ -77,7 +80,7 @@ class ShareCacheService
             if (($object['type'] === 'model' && $object['class'] === $class) ||
                 ($object['type'] === 'repository' && in_array($class, $object['models']))) {
 
-                Redis::hdel($this->getCacheKey($name, $object['type']), $model->getKey());
+                $this->getCache($object['type'])->flush();
 
             }
         }
@@ -89,7 +92,9 @@ class ShareCacheService
 
         $data = $this->getObjectData($object, $key);
 
-        Redis::hset($this->getCacheKey($name), $key, $data);
+        $ttl = ShareCacheServiceManager::getConfig('cache', [])['ttl'] ?? 1209600;
+
+        $this->getCache($object['type'])->put($key, $data, $ttl);
 
         return $data;
     }
@@ -116,23 +121,12 @@ class ShareCacheService
     }
 
     /**
-     * @param $name
-     * @param null $type
-     * @return string
-     * @throws ShareCacheException
+     * @param string $model
+     * @return \Illuminate\Cache\RedisTaggedCache|\Illuminate\Contracts\Cache\Repository
      */
-    protected function getCacheKey($name, $type = null)
+    protected function getCache($model)
     {
-        if ($type === null) {
-            if (empty($this->objects[$name])) {
-                throw new ShareCacheException("object \" $name \" not define.");
-            }
-            $type = $this->objects[$name]['type'];
-        }
-
-        $prefix = Util::array_get($this->config, 'cache_prefix', 'sharecache');
-
-        return "$prefix:server:{$this->name}:$type:$name";
+        return ShareCacheServiceManager::getCache([$this->name, $model]);
     }
 
     /**

@@ -10,7 +10,6 @@ namespace YiluTech\ShareCache\Commands;
 
 use YiluTech\ShareCache\ShareCacheServiceManager;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Redis;
 
 class FlushCommand extends Command
 {
@@ -43,8 +42,6 @@ class FlushCommand extends Command
     protected function flushServers()
     {
         $server_keys = $this->option('server');
-        $cache_key = ShareCacheServiceManager::getCachePrefix() . 's';
-
         $servers = ShareCacheServiceManager::getServers();
         $empty = !count($server_keys);
         foreach ($servers as $name => $server) {
@@ -53,9 +50,9 @@ class FlushCommand extends Command
             }
         }
         if (count($servers)) {
-            Redis::set($cache_key, json_encode($servers));
+            ShareCacheServiceManager::getCache()->put('servers', json_encode($servers));
         } else {
-            Redis::del($cache_key);
+            ShareCacheServiceManager::getCache()->delete('servers');
         }
     }
 
@@ -69,10 +66,9 @@ class FlushCommand extends Command
             return;
         }
 
-        $prefix = ShareCacheServiceManager::getCachePrefix();
         foreach ($servers[$name]['objects'] as $key => $object) {
             if ($empty || in_array($key, $object_keys)) {
-                Redis::del("$prefix:$name:{$object['type']}:$key");
+                ShareCacheServiceManager::getCache([$name, $object['type']])->flush();
                 $this->info("server:[$name] {$object['type']}:$key flushed.");
             }
         }

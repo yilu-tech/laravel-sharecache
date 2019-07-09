@@ -7,10 +7,14 @@
  */
 
 return [
-
     'name' => '',
 
     'url' => '',
+
+    'cache' => [
+        'prefix' => 'sharecache',
+        'ttl' => 1209600
+    ],
 
     'models' => [       // 'alias' => 'class'
 

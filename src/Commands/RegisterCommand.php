@@ -10,7 +10,6 @@ namespace YiluTech\ShareCache\Commands;
 
 use YiluTech\ShareCache\ShareCacheServiceManager;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Redis;
 use YiluTech\ShareCache\Util;
 
 
@@ -49,26 +48,25 @@ class RegisterCommand extends Command
         if (!$name || !$url) return;
 
         $objects = $this->getObjects(ShareCacheServiceManager::getConfig());
+        if (isset($objects[$name])) {
+            $this->error('model or repository name can not define server name.');
+            return;
+        }
         $servers = ShareCacheServiceManager::getServers();
 
         if (isset($servers[$name])) {
             $this->removeObjects($name, array_diff_key($servers[$name]['objects'] ?? [], $objects));
         }
         $servers[$name] = compact('url', 'objects');
-
-        $cache_key = ShareCacheServiceManager::getCachePrefix() . 's';
-        Redis::set($cache_key, json_encode($servers));
+        ShareCacheServiceManager::getCache()->put('servers', json_encode($servers));
         $this->info('register success.');
     }
 
     protected function removeObjects($server, $objects)
     {
         foreach ($objects as $name => $object) {
-            $key = ShareCacheServiceManager::getCachePrefix() . ":$server:{$object['type']}:$name";
-            if (Redis::exists($key)) {
-                Redis::del($key);
-                $this->info("remove model $name.");
-            }
+            ShareCacheServiceManager::getCache([$server, $object['type']])->flush();
+            $this->info("remove model $name.");
         }
     }
 
