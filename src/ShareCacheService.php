@@ -74,10 +74,10 @@ class ShareCacheService
 
     public function __call($name, $arguments)
     {
-        $object = $this->object(array_shift($arguments));
         if (count($arguments)) {
+            $object = $this->object(array_shift($arguments));
             return $object->{$name}(...$arguments);
         }
-        return $object;
+        return $this->object($name);
     }
 }
