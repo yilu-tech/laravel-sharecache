@@ -72,12 +72,12 @@ class ShareCacheService
         return $this;
     }
 
-    public function __call($fun, $arguments)
+    public function __call($name, $arguments)
     {
-        $name = array_shift($arguments);
-        if ($name) {
-            return $this->object($name)->{$fun}(...$arguments);
+        $object = $this->object(array_shift($arguments));
+        if (count($arguments)) {
+            return $object->{$name}(...$arguments);
         }
-        return $this;
+        return $object;
     }
 }

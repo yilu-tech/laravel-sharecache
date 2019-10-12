@@ -91,9 +91,12 @@ class ShareCacheServiceManager
         return $this->serverInstances[$name];
     }
 
-    public function __call($fun, $arguments)
+    public function __call($name, $arguments)
     {
-        $name = array_shift($arguments);
-        return $this->service($name)->{$fun}(...$arguments);
+        $service = $this->service(array_shift($arguments));
+        if (count($arguments)) {
+            return $service->{$name}(...$arguments);
+        }
+        return $service;
     }
 }
