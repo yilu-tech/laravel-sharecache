@@ -36,41 +36,41 @@ class FlushCommand extends Command
     {
         $this->flushServers();
 
-        $this->call('sharecache:show');
+        $this->call('sharecache:list');
     }
 
     protected function flushServers()
     {
+        $manager = app(ShareCacheServiceManager::class);
+
         $server_keys = $this->option('server');
-        $servers = ShareCacheServiceManager::getServers();
+
+        $servers = $manager->getServers();
+
         $empty = !count($server_keys);
         foreach ($servers as $name => $server) {
             if ($empty || in_array($name, $server_keys)) {
-                $this->flushServer($servers, $name);
+                $this->flushServer($manager->getDriver(), $servers, $name);
             }
         }
-        if (count($servers)) {
-            ShareCacheServiceManager::getCache()->put('servers', json_encode($servers));
-        } else {
-            ShareCacheServiceManager::getCache()->delete('servers');
-        }
+        $manager->setServers($servers);
     }
 
-    protected function flushServer(&$servers, $name)
+    protected function flushServer($driver, &$servers, $name)
     {
         $object_keys = $this->option('object');
         $empty = !count($object_keys);
 
-        if ($empty) {
-            unset($servers[$name]);
-            return;
-        }
-
         foreach ($servers[$name]['objects'] as $key => $object) {
             if ($empty || in_array($key, $object_keys)) {
-                ShareCacheServiceManager::getCache([$name, $key])->flush();
+                $driver->del("$name:$key");
                 $this->info("server:[$name] {$object['type']}:$key flushed.");
+                unset($servers[$name]['objects'][$key]);
             }
+        }
+
+        if ($empty) {
+            unset($servers[$name]);
         }
     }
 }

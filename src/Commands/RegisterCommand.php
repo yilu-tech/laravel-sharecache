@@ -12,7 +12,6 @@ use YiluTech\ShareCache\ShareCacheServiceManager;
 use Illuminate\Console\Command;
 use YiluTech\ShareCache\Util;
 
-
 class RegisterCommand extends Command
 {
     /**
@@ -37,35 +36,45 @@ class RegisterCommand extends Command
     public function handle()
     {
         $this->setServer();
-        $this->call('sharecache:show');
+        $this->call('sharecache:list');
     }
 
     protected function setServer()
     {
-        $name = ShareCacheServiceManager::getConfig('name');
-        $url = ShareCacheServiceManager::getConfig('url');
+        $manager = app(ShareCacheServiceManager::class);
 
-        if (!$name || !$url) return;
+        $name = $manager->getConfig('name');
+        $url = $manager->getConfig('url');
 
-        $objects = $this->getObjects(ShareCacheServiceManager::getConfig());
+        if (!$name || !$url) {
+            $this->error('name or url not define.');
+            return false;
+        }
+
+        $objects = $this->getObjects($manager->getConfig());
+
         if (isset($objects[$name])) {
             $this->error('model or repository name can not define server name.');
-            return;
+            return false;
         }
-        $servers = ShareCacheServiceManager::getServers();
+
+        $servers = $manager->getServers();
 
         if (isset($servers[$name])) {
-            $this->removeObjects($name, array_diff_key($servers[$name]['objects'] ?? [], $objects));
+            $this->removeObjects($manager->getDriver(), $name, array_diff_key($servers[$name]['objects'] ?? [], $objects));
         }
+
         $servers[$name] = compact('url', 'objects');
-        ShareCacheServiceManager::getCache()->put('servers', json_encode($servers));
+
+        $manager->setServers($servers);
+
         $this->info('register success.');
     }
 
-    protected function removeObjects($server, $objects)
+    protected function removeObjects($driver, $server, $objects)
     {
         foreach ($objects as $name => $object) {
-            ShareCacheServiceManager::getCache([$server, $name])->flush();
+            $driver->del("$server:$name");
             $this->info("remove model $name.");
         }
     }

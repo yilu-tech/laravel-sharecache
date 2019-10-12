@@ -13,20 +13,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Util
 {
-    public static function array_get($array, $name = null, $default = null)
-    {
-        if ($name === null) {
-            return $array;
-        }
-        return $array[$name] ?? $default;
-    }
-
     public static function getRepositoryProviders($repository)
     {
         $reflection = new \ReflectionClass($repository);
 
         if (!$reflection->hasMethod('__construct')) {
-            return null;
+            return [];
         }
 
         $reflectionMethod = $reflection->getMethod('__construct');

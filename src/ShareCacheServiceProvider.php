@@ -18,15 +18,14 @@ class ShareCacheServiceProvider extends ServiceProvider
 {
     public function boot()
     {
+        $this->app->singleton(ShareCacheServiceManager::class, function ($app) {
+            return new ShareCacheServiceManager(config('sharecache', []));
+        });
         $this->registerModelEvent();
     }
 
     public function register()
     {
-        $this->app->singleton(ShareCacheServiceManager::class, function ($app) {
-            return new ShareCacheServiceManager($app);
-        });
-
         if ($this->app->runningInConsole()) {
             $this->commands([
                 RegisterCommand::class,
@@ -42,7 +41,7 @@ class ShareCacheServiceProvider extends ServiceProvider
 
     protected function registerModelEvent()
     {
-        foreach (ShareCacheServiceManager::getModels() as $model) {
+        foreach (app(ShareCacheServiceManager::class)->getModels() as $model) {
             $model::created([ModelEventListener::class, 'created']);
             $model::updated([ModelEventListener::class, 'updated']);
             $model::deleted([ModelEventListener::class, 'deleted']);

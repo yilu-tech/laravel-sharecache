@@ -18,7 +18,7 @@ class ShowCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'sharecache:show {--server=} {--object=} {--except}';
+    protected $signature = 'sharecache:list {--server=} {--object=} {--except}';
 
     /**
      * The console command description.
@@ -34,11 +34,11 @@ class ShowCommand extends Command
      */
     public function handle()
     {
-        $servers = ShareCacheServiceManager::getServers();
+        $manager = app(ShareCacheServiceManager::class);
 
         $except = $this->option('except');
 
-        $servers = collect($servers);
+        $servers = collect($manager->getServers());
 
         if ($preg = $this->option('server')) {
             $preg = "/$preg/";
@@ -51,19 +51,18 @@ class ShowCommand extends Command
             $preg = "/$preg/";
         }
 
-        $objects = $servers->flatMap(function ($server, $server_name) use ($preg, $except) {
+        $objects = $servers->flatMap(function ($server, $server_name) use ($preg, $except, $manager) {
             $objects = collect($server['objects']);
             if ($preg) {
                 $objects = $objects->filter(function ($object, $name) use ($preg, $except) {
                     return !($except ^ (bool)preg_match($preg, $name));
                 });
             }
-
-            return $objects->map(function ($object, $name) use ($server, $server_name) {
-                return [$server_name, $server['url'], "$name => {$object['class']}"];
+            return $objects->map(function ($object, $name) use ($server, $server_name, $manager) {
+                return [$server_name, $server['url'], "$name => {$object['class']}", $manager->getDriver()->hlen("$server_name:$name")];
             });
         });
 
-        $this->table(['server', 'url', 'object'], $objects);
+        $this->table(['server', 'url', 'object', 'count'], $objects);
     }
 }

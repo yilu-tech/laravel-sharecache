@@ -1,9 +1,6 @@
 <?php
 
-
 namespace YiluTech\ShareCache;
-
-use Illuminate\Support\Facades\Cache;
 
 /**
  * Class SharedCache
@@ -16,60 +13,60 @@ class ShareCacheServiceManager
      */
     protected $app;
 
-    protected $servers = array();
+    protected $servers;
+
+    /**
+     * @var \Predis\Client
+     */
+    protected $driver;
+
+    protected $config;
 
     protected $serverInstances = array();
 
-    protected static $config;
-    protected static $cache;
-
-    public function __construct($app)
+    public function __construct($config = array())
     {
-        $this->app = $app;
-        $this->servers = static::getServers();
+        $this->config = $config;
     }
 
-    public static function getConfig($name = null, $default = null)
+    public function getServers()
     {
-        if (!static::$config) {
-            static::$config = app()['config']['sharecache'] ?: [];
-        };
-        return Util::array_get(static::$config, $name, $default);
-    }
-
-    public static function getServers()
-    {
-        if ($servers = static::getCache()->get('servers')) {
-            return json_decode($servers, JSON_OBJECT_AS_ARRAY);
+        if (!$this->servers) {
+            $this->servers = json_decode($this->getDriver()->get('servers'), JSON_OBJECT_AS_ARRAY) ?: [];
         }
-        return array();
+        return $this->servers;
     }
 
-    public static function getModels($config = null)
+    public function setServers(array $servers)
     {
-        if (!$config) {
-            $config = static::getConfig();
-        }
-
-        return array_unique(array_merge(
-            array_values($config['models'] ?? []),
-            ...array_values(array_map(function ($repository) {
-                return Util::getRepositoryProviders($repository);
-            }, $config['repositories'] ?? [])
-        )));
+        $this->servers = $servers;
+        $this->getDriver()->set('servers', json_encode($servers));
+        return $this;
     }
 
-    /**
-     * @param array $tags
-     * @return \Illuminate\Contracts\Cache\Repository | \Illuminate\Cache\RedisTaggedCache
-     */
-    public static function getCache($tags = null)
+    public function getDriver()
     {
-        if (!static::$cache) {
-            static::$cache = Cache::store('redis');
-            static::$cache->setPrefix(static::getConfig('cache', [])['prefix'] ?? 'sharecache');
+        if (!$this->driver) {
+            $this->driver = new CacheDriver($config['cache'] ?? []);
         }
-        return $tags ? static::$cache->tags($tags) : static::$cache;
+        return $this->driver;
+    }
+
+    public function getConfig($name = null, $default = null)
+    {
+        if ($name === null) {
+            return $this->config;
+        }
+        return $this->config[$name] ?? $default;
+    }
+
+    public function getModels()
+    {
+        $models = $this->getConfig('models', []);
+        foreach ($this->getConfig('repositories', []) as $repository) {
+            $models = array_merge($models, Util::getRepositoryProviders($repository));
+        }
+        return array_unique($models);
     }
 
     /**
@@ -80,21 +77,23 @@ class ShareCacheServiceManager
     public function service($name = null)
     {
         if ($name === null) {
-            $name = static::getConfig('name');
+            $name = $this->getConfig('name');
         }
+        $servers = $this->getServers();
 
         if (empty($this->serverInstances[$name])) {
-            if (empty($this->servers[$name])) {
+            if (empty($servers[$name])) {
                 throw new ShareCacheException("share cache server: $name not define.");
             }
-            $this->serverInstances[$name] = new ShareCacheService($name, $this->servers[$name]);
+            $this->serverInstances[$name] = new ShareCacheService($name, $servers[$name], $this);
         }
 
         return $this->serverInstances[$name];
     }
 
-    public function __call($name, $arguments)
+    public function __call($fun, $arguments)
     {
-        return $this->service($name);
+        $name = array_shift($arguments);
+        return $this->service($name)->{$fun}(...$arguments);
     }
 }
