@@ -16,6 +16,8 @@ class CacheDriver
 
     protected $prefix;
 
+    protected $originalPrefix;
+
     public function __construct($config = [])
     {
         $this->config = $config;
@@ -36,19 +38,30 @@ class CacheDriver
     {
         if (!$this->driver) {
             $this->driver = Redis::connection();
+            $options = $this->driver->getOptions();
+            if ($options->prefix) {
+                $this->originalPrefix = $options->prefix->getPrefix();
+            }
         }
         return $this->driver;
     }
 
     public function __call($name, $arguments)
     {
-        if (is_array($arguments[0])) {
-            $arguments[0] = array_map(function ($key) {
-                return $this->prefix . $key;
-            }, $arguments[0]);
-        } else {
-            $arguments[0] = $this->prefix . $arguments[0];
+        $driver = $this->getDriver();
+
+        $options = $this->driver->getOptions();
+
+        if ($options->prefix) {
+            $options->prefix->setPrefix($this->prefix);
         }
-        return $this->getDriver()->{$name}(...$arguments);
+
+        $result = $driver->{$name}(...$arguments);
+
+        if ($options->prefix) {
+            $options->prefix->setPrefix($this->originalPrefix);
+        }
+
+        return $result;
     }
 }
