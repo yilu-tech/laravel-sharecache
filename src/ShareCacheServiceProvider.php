@@ -45,7 +45,6 @@ class ShareCacheServiceProvider extends ServiceProvider
             $model::created([ModelEventListener::class, 'created']);
             $model::updated([ModelEventListener::class, 'updated']);
             $model::deleted([ModelEventListener::class, 'deleted']);
-            $model::saved([ModelEventListener::class, 'saved']);
         }
     }
 

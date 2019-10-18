@@ -15,14 +15,6 @@ class ModelEventListener
     /**
      * @param $model \Illuminate\Database\Eloquent\Model
      */
-    public static function saved($model)
-    {
-        static::deleted($model);
-    }
-
-    /**
-     * @param $model \Illuminate\Database\Eloquent\Model
-     */
     public static function created($model)
     {
         static::deleted($model);
