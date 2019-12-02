@@ -41,21 +41,31 @@ class ShareCacheObject
 
     public function get($key)
     {
+        if (is_array($key)) {
+            return $this->getMany($key);
+        }
+
         $value = $this->driver()->hget($this->getName(), $key);
 
         if ($value === null) {
             $value = $this->put($key);
         }
 
-        if ($value) {
-            try {
-                $value = json_decode($value, JSON_OBJECT_AS_ARRAY);
-            } catch (\Exception $exception) {
-                $value = null;
+        return $this->format($value);
+    }
+
+    public function getMany($keys)
+    {
+        $values = $this->driver()->eval(RedisLuaScript::HGETMANY, 1, $this->getName(), ...$keys);
+
+        foreach ($values as $key => &$value) {
+            if ($value === null) {
+                $value = $this->put($keys[$key]);
             }
+            $value = $this->format($value);
         }
 
-        return $value;
+        return $values;
     }
 
     public function has($key)
@@ -129,5 +139,17 @@ class ShareCacheObject
             return $data ? $data->toJson() : null;
         }
         throw new ShareCacheException('model or repository serialization function not define.');
+    }
+
+    protected function format($value)
+    {
+        if ($value) {
+            try {
+                $value = json_decode($value, JSON_OBJECT_AS_ARRAY);
+            } catch (\Exception $exception) {
+                $value = null;
+            }
+        }
+        return $value;
     }
 }
