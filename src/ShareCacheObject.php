@@ -30,7 +30,8 @@ class ShareCacheObject
 
     public function getName()
     {
-        return $this->service->getName() . ':' . $this->name;
+        $name = $this->service->getName() . ':' . $this->name;
+        return $this->service->getManager()->applyPrefix($name);
     }
 
     public function driver()

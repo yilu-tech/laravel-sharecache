@@ -62,7 +62,7 @@ class ShareCacheService
         foreach ($this->config['objects'] as $name => $object) {
             if (($object['type'] === 'model' && $object['class'] === $class) ||
                 ($object['type'] === 'repository' && in_array($class, $object['models']))) {
-                $keys[] = $this->name . ':' . $name;
+                $keys[] = $this->manager->applyPrefix($this->name . ':' . $name);
             }
         }
 

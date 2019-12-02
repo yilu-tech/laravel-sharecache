@@ -50,20 +50,25 @@ class FlushCommand extends Command
         $empty = !count($server_keys);
         foreach ($servers as $name => $server) {
             if ($empty || in_array($name, $server_keys)) {
-                $this->flushServer($manager->getDriver(), $servers, $name);
+                $this->flushServer($manager, $servers, $name);
             }
         }
         $manager->setServers($servers);
     }
 
-    protected function flushServer($driver, &$servers, $name)
+    /**
+     * @param ShareCacheServiceManager $manager
+     * @param $servers
+     * @param $name
+     */
+    protected function flushServer($manager, &$servers, $name)
     {
         $object_keys = $this->option('object');
         $empty = !count($object_keys);
 
         foreach ($servers[$name]['objects'] as $key => $object) {
             if ($empty || in_array($key, $object_keys)) {
-                $driver->del("$name:$key");
+                $manager->getDriver()->del([$manager->applyPrefix("$name:$key")]);
                 $this->info("server:[$name] {$object['type']}:$key flushed.");
                 unset($servers[$name]['objects'][$key]);
             }

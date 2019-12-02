@@ -61,7 +61,7 @@ class RegisterCommand extends Command
         $servers = $manager->getServers();
 
         if (isset($servers[$name])) {
-            $this->removeObjects($manager->getDriver(), $name, array_diff_key($servers[$name]['objects'] ?? [], $objects));
+            $this->removeObjects($manager, $name, array_diff_key($servers[$name]['objects'] ?? [], $objects));
         }
 
         $servers[$name] = compact('url', 'objects');
@@ -71,10 +71,15 @@ class RegisterCommand extends Command
         $this->info('register success.');
     }
 
-    protected function removeObjects($driver, $server, $objects)
+    /**
+     * @param ShareCacheServiceManager $manager
+     * @param $server
+     * @param $objects
+     */
+    protected function removeObjects($manager, $server, $objects)
     {
         foreach ($objects as $name => $object) {
-            $driver->del("$server:$name");
+            $manager->getDriver()->del([$manager->applyPrefix("$server:$name")]);
             $this->info("remove model $name.");
         }
     }

@@ -22,17 +22,31 @@ class ShareCacheServiceManager
 
     protected $config;
 
+    protected $prefix;
+
     protected $serverInstances = array();
 
     public function __construct($config = array())
     {
         $this->config = $config;
+        $this->setPrefix($this->getConfig('prefix', 'sharecache'));
+    }
+
+    public function setPrefix($name)
+    {
+        $this->prefix = trim($name, ':') . ':';
+        return $this;
+    }
+
+    public function applyPrefix($name)
+    {
+        return $this->prefix . $name;
     }
 
     public function getServers()
     {
         if (!$this->servers) {
-            $this->servers = json_decode($this->getDriver()->get('servers'), JSON_OBJECT_AS_ARRAY) ?: [];
+            $this->servers = json_decode($this->getDriver()->get($this->applyPrefix('servers')), JSON_OBJECT_AS_ARRAY) ?: [];
         }
         return $this->servers;
     }
@@ -40,14 +54,14 @@ class ShareCacheServiceManager
     public function setServers(array $servers)
     {
         $this->servers = $servers;
-        $this->getDriver()->set('servers', json_encode($servers));
+        $this->getDriver()->set($this->applyPrefix('servers'), json_encode($servers));
         return $this;
     }
 
     public function getDriver()
     {
         if (!$this->driver) {
-            $this->driver = new CacheDriver($config['cache'] ?? []);
+            $this->driver = \Redis::connection();
         }
         return $this->driver;
     }
