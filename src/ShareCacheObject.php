@@ -56,6 +56,8 @@ class ShareCacheObject
 
     public function getMany($keys)
     {
+        $keys = array_values($keys);
+
         $values = $this->driver()->eval(RedisLuaScript::HGETMANY, 1, $this->getName(), ...$keys);
 
         foreach ($values as $key => &$value) {
@@ -65,7 +67,7 @@ class ShareCacheObject
             $value = $this->format($value);
         }
 
-        return $values;
+        return array_combine($keys, $values);
     }
 
     public function has($key)
