@@ -57,8 +57,7 @@ class ShareCacheObject
     public function getMany($keys)
     {
         $keys = array_values($keys);
-
-        $values = $this->driver()->eval(RedisLuaScript::HGETMANY, 1, $this->getName(), ...$keys);
+        $values = $this->driver()->hmget($this->getName(), $keys);
 
         foreach ($values as $key => &$value) {
             if ($value === null) {
@@ -66,7 +65,6 @@ class ShareCacheObject
             }
             $value = $this->format($value);
         }
-
         return array_combine($keys, $values);
     }
 
@@ -109,9 +107,6 @@ class ShareCacheObject
         } catch (\Exception $exception) {
             throw new ShareCacheException('set remote error.');
         }
-        if ($content) {
-            $content = json_decode($content, JSON_OBJECT_AS_ARRAY);
-        }
         return $content;
     }
 
@@ -145,7 +140,7 @@ class ShareCacheObject
 
     protected function format($value)
     {
-        if ($value) {
+        if (is_string($value)) {
             try {
                 $value = json_decode($value, JSON_OBJECT_AS_ARRAY);
             } catch (\Exception $exception) {
