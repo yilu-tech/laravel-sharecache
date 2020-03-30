@@ -57,18 +57,13 @@ class ShareCacheService
     {
         $class = get_class($model);
 
-        $keys = array();
-
         foreach ($this->config['objects'] as $name => $object) {
             if (($object['type'] === 'model' && $object['class'] === $class) ||
                 ($object['type'] === 'repository' && in_array($class, $object['models']))) {
-                $keys[] = $this->manager->applyPrefix($this->name . ':' . $name);
+                $this->object($name)->del($model->getKey());
             }
         }
 
-        if (count($keys)) {
-            $this->manager->getDriver()->del($keys);
-        }
         return $this;
     }
 

@@ -73,6 +73,12 @@ class ShareCacheObject
         return $this->driver()->hexists($this->getName(), $key);
     }
 
+    public function del($key)
+    {
+        $keys = is_array($key) ? $key : func_get_args();
+        return $this->driver()->hdel($this->getName(), $keys);
+    }
+
     public function put($key)
     {
         return $this->service->isRemote()
