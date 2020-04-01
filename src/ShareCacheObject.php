@@ -45,7 +45,7 @@ class ShareCacheObject
             return $this->getMany($key);
         }
 
-        if ($key === null) {
+        if ($key === null || $key === '') {
             return null;
         }
 
