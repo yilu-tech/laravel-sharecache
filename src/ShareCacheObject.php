@@ -45,6 +45,10 @@ class ShareCacheObject
             return $this->getMany($key);
         }
 
+        if ($key === null) {
+            return null;
+        }
+
         $value = $this->driver()->hget($this->getName(), $key);
 
         if ($value === null) {
@@ -56,7 +60,16 @@ class ShareCacheObject
 
     public function getMany($keys)
     {
-        $keys = array_values($keys);
+        $keys = array_filter($keys, function ($key) {
+            return $key !== null && $key !== '';
+        });
+
+        if (empty($keys)) {
+            return $keys;
+        }
+
+        $keys = array_values(array_unique($keys));
+
         $values = $this->driver()->hmget($this->getName(), $keys);
 
         foreach ($values as $key => &$value) {
