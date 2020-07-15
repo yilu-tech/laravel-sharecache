@@ -26,6 +26,9 @@ class ShareCacheServiceManager
 
     protected $serverInstances = array();
 
+    protected $mockServers;
+    public $mockers;
+
     public function __construct($config = array())
     {
         $this->config = $config;
@@ -45,10 +48,24 @@ class ShareCacheServiceManager
 
     public function getServers()
     {
+        if ($this->mockServers) {
+            $this->servers = $this->mockServers;
+        }
+
         if (!$this->servers) {
             $this->servers = json_decode($this->getDriver()->get($this->applyPrefix('servers')), JSON_OBJECT_AS_ARRAY) ?: [];
         }
         return $this->servers;
+    }
+
+    public function mock($items)
+    {
+        $this->mockers = $items;
+    }
+
+    public function mockServer($servers)
+    {
+        $this->mockServers = $servers;
     }
 
     public function setServers(array $servers)

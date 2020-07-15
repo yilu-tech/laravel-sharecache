@@ -41,6 +41,10 @@ class ShareCacheObject
 
     public function get($key)
     {
+        if ($this->service->getManager()->mockers) {
+            return array_shift($this->service->getManager()->mockers);
+        }
+
         if (is_array($key)) {
             return $this->getMany($key);
         }
@@ -54,7 +58,6 @@ class ShareCacheObject
         if ($value === null) {
             $value = $this->put($key);
         }
-
         return $this->format($value);
     }
 
