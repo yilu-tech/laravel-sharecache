@@ -41,10 +41,6 @@ class ShareCacheObject
 
     public function get($key)
     {
-        if ($this->service->getManager()->mockers) {
-            return array_shift($this->service->getManager()->mockers);
-        }
-
         if (is_array($key)) {
             return $this->getMany($key);
         }
@@ -82,6 +78,20 @@ class ShareCacheObject
             $value = $this->format($value);
         }
         return array_combine($keys, $values);
+    }
+
+    public function set($field, $value = null)
+    {
+        $driver = $this->driver();
+        $key = $this->getName();
+
+        if (is_array($field)) {
+            foreach ($field as $k => $v) {
+                $driver->hset($key, $k, $v);
+            }
+        } else {
+            $driver->hset($key, $field, $value);
+        }
     }
 
     public function has($key)
