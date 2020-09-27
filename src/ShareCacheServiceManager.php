@@ -8,11 +8,6 @@ namespace YiluTech\ShareCache;
  */
 class ShareCacheServiceManager
 {
-    /**
-     * @var \Illuminate\Contracts\Foundation\Application
-     */
-    protected $app;
-
     protected $servers;
 
     /**
@@ -25,6 +20,8 @@ class ShareCacheServiceManager
     protected $prefix;
 
     protected $serverInstances = array();
+
+    protected $mocking = false;
 
     public function __construct($config = array())
     {
@@ -51,18 +48,30 @@ class ShareCacheServiceManager
         return $this->servers;
     }
 
-    public function mock(array $servers)
-    {
-        $this->driver = new ArrayDriver();
-        $this->setServers($servers);
-    }
-
     public function setServers(array $servers)
     {
         $this->servers = $servers;
         $this->getDriver()->set($this->applyPrefix('servers'), json_encode($servers));
         return $this;
     }
+
+    public function isCurrentServer($name)
+    {
+        return $this->mocking || $this->config['name'] == $name;
+    }
+
+    public function mock(array $servers)
+    {
+        $this->mocking = true;
+        $this->driver = new ArrayDriver();
+        return $this->setServers($servers);
+    }
+
+    public function mocking()
+    {
+        return $this->mocking;
+    }
+
 
     public function getDriver()
     {

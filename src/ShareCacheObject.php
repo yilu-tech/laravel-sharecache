@@ -80,17 +80,17 @@ class ShareCacheObject
         return array_combine($keys, $values);
     }
 
-    public function set($field, $value = null)
+    public function set($key, $value = null)
     {
         $driver = $this->driver();
-        $key = $this->getName();
+        $object = $this->getName();
 
-        if (is_array($field)) {
-            foreach ($field as $k => $v) {
-                $driver->hset($key, $k, $v);
+        if (is_array($key)) {
+            foreach ($key as $k => $v) {
+                $driver->hset($object, $k, $v);
             }
         } else {
-            $driver->hset($key, $field, $value);
+            $driver->hset($object, $key, $value);
         }
     }
 

@@ -42,7 +42,7 @@ class ShareCacheService
 
     public function isRemote()
     {
-        return $this->getName() != $this->manager->getConfig('name');
+        return !$this->manager->isCurrentServer($this->getName());
     }
 
     public function object($name)
