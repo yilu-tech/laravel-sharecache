@@ -44,38 +44,24 @@ class FlushCommand extends Command
         $manager = app(ShareCacheServiceManager::class);
 
         $server_keys = $this->option('server');
+        $object_keys = $this->option('object');
 
-        $servers = $manager->getServers();
-
-        $empty = !count($server_keys);
-        foreach ($servers as $name => $server) {
+        $empty = empty($server_keys);
+        foreach ($manager->getServers() as $name => $server) {
             if ($empty || in_array($name, $server_keys)) {
-                $this->flushServer($manager, $servers, $name);
+                $this->flushServer($manager->service($name), $object_keys);
             }
         }
-        $manager->setServers($servers);
     }
 
-    /**
-     * @param ShareCacheServiceManager $manager
-     * @param $servers
-     * @param $name
-     */
-    protected function flushServer($manager, &$servers, $name)
+    protected function flushServer($service, $objects)
     {
-        $object_keys = $this->option('object');
-        $empty = !count($object_keys);
-
-        foreach ($servers[$name]['objects'] as $key => $object) {
-            if ($empty || in_array($key, $object_keys)) {
-                $manager->getDriver()->del([$manager->applyPrefix("$name:$key")]);
-                $this->info("server:[$name] {$object['type']}:$key flushed.");
-                unset($servers[$name]['objects'][$key]);
+        $empty = !count($objects);
+        foreach ($service->getObjects() as $key => $object) {
+            if ($empty || in_array($key, $objects)) {
+                $service->object($key)->flush();
+                $this->info(sprintf('server:[%s] %s:%s flushed.', $service->getName(), $object['type'], $key));
             }
-        }
-
-        if ($empty) {
-            unset($servers[$name]);
         }
     }
 }

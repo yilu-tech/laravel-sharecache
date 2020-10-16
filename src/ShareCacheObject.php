@@ -3,6 +3,7 @@
 namespace YiluTech\ShareCache;
 
 use GuzzleHttp\Client;
+use Illuminate\Contracts\Cache\Store;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -20,23 +21,27 @@ class ShareCacheObject
      */
     protected $service;
 
+    /**
+     * @var Store
+     */
+    protected $store;
+
     public function __construct($name, array $config, ShareCacheService $service)
     {
         $this->name = $name;
         $this->config = $config;
-
         $this->service = $service;
+        $this->store = $service->getManager()->getStore()->tags($service->getName() . ':' . $name);
     }
 
     public function getName()
     {
-        $name = $this->service->getName() . ':' . $this->name;
-        return $this->service->getManager()->applyPrefix($name);
+        return $this->service->getName() . ':' . $this->name;
     }
 
-    public function driver()
+    public function getStore()
     {
-        return $this->service->getManager()->getDriver();
+        return $this->store;
     }
 
     public function get($key)
@@ -49,12 +54,12 @@ class ShareCacheObject
             return null;
         }
 
-        $value = $this->driver()->hget($this->getName(), $key);
+        $value = $this->store->get($key);
 
         if ($value === null) {
             $value = $this->put($key);
         }
-        return $this->format($value);
+        return $value;
     }
 
     public function getMany($keys)
@@ -69,40 +74,39 @@ class ShareCacheObject
 
         $keys = array_values(array_unique($keys));
 
-        $values = $this->driver()->hmget($this->getName(), $keys);
+        $values = $this->store->many($keys);
 
         foreach ($values as $key => &$value) {
             if ($value === null) {
                 $value = $this->put($keys[$key]);
             }
-            $value = $this->format($value);
         }
         return array_combine($keys, $values);
     }
 
     public function set($key, $value = null)
     {
-        $driver = $this->driver();
-        $object = $this->getName();
-
+        $ttl = $this->config['ttl'] ?? 30 * 86400;
         if (is_array($key)) {
-            foreach ($key as $k => $v) {
-                $driver->hset($object, $k, $v);
-            }
+            $this->store->putMany($key, $ttl);
         } else {
-            $driver->hset($object, $key, $value);
+            $this->store->put($key, $value, $ttl);
         }
     }
 
     public function has($key)
     {
-        return $this->driver()->hexists($this->getName(), $key);
+        return $this->store->get($key);
     }
 
     public function del($key)
     {
-        $keys = is_array($key) ? $key : func_get_args();
-        return $this->driver()->hdel($this->getName(), $keys);
+        return $this->store->forget($key);
+    }
+
+    public function flush()
+    {
+        return $this->store->flush();
     }
 
     public function put($key)
@@ -115,11 +119,9 @@ class ShareCacheObject
     protected function localSet($key)
     {
         $data = $this->getObjectData($key);
-
         if ($data) {
-            $this->driver()->hset($this->getName(), $key, $data);
+            $this->set($key, $data);
         }
-
         return $data;
     }
 
@@ -155,9 +157,6 @@ class ShareCacheObject
             if ($data === null || $data === false) {
                 return null;
             }
-            if (is_array($data)) {
-                $data = json_encode($data);
-            }
             if (is_object($data)) {
                 throw new ShareCacheException('model or repository store data type error.');
             }
@@ -168,17 +167,5 @@ class ShareCacheObject
             return $data ? $data->toJson() : null;
         }
         throw new ShareCacheException('model or repository serialization function not define.');
-    }
-
-    protected function format($value)
-    {
-        if (is_string($value)) {
-            try {
-                $value = json_decode($value, JSON_OBJECT_AS_ARRAY);
-            } catch (\Exception $exception) {
-                $value = null;
-            }
-        }
-        return $value;
     }
 }

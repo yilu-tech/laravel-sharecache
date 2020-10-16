@@ -59,10 +59,10 @@ class ShowCommand extends Command
                 });
             }
             return $objects->map(function ($object, $name) use ($server, $server_name, $manager) {
-                return [$server_name, $server['url'], "$name => {$object['class']}", $manager->getDriver()->hlen("$server_name:$name")];
+                return [$server_name, $server['url'], "$name => {$object['class']}"];
             });
         });
 
-        $this->table(['server', 'url', 'object', 'count'], $objects);
+        $this->table(['server', 'url', 'object'], $objects);
     }
 }

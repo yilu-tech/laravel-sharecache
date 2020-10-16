@@ -2,18 +2,12 @@
 
 namespace YiluTech\ShareCache;
 
-/**
- * Class SharedCache
- *
- */
+use Illuminate\Cache\ArrayStore;
+
+
 class ShareCacheServiceManager
 {
     protected $servers;
-
-    /**
-     * @var \Predis\Client
-     */
-    protected $driver;
 
     protected $config;
 
@@ -23,6 +17,8 @@ class ShareCacheServiceManager
 
     protected $mocking = false;
 
+    protected $store;
+
     public function __construct($config = array())
     {
         $this->config = $config;
@@ -31,19 +27,14 @@ class ShareCacheServiceManager
 
     public function setPrefix($name)
     {
-        $this->prefix = trim($name, ':') . ':';
+        $this->prefix = trim($name, ':');
         return $this;
-    }
-
-    public function applyPrefix($name)
-    {
-        return $this->prefix . $name;
     }
 
     public function getServers()
     {
         if (!$this->servers) {
-            $this->servers = json_decode($this->getDriver()->get($this->applyPrefix('servers')), JSON_OBJECT_AS_ARRAY) ?: [];
+            $this->servers = $this->getStore()->get('services') ?: [];
         }
         return $this->servers;
     }
@@ -51,7 +42,7 @@ class ShareCacheServiceManager
     public function setServers(array $servers)
     {
         $this->servers = $servers;
-        $this->getDriver()->set($this->applyPrefix('servers'), json_encode($servers));
+        $this->getStore()->forever('services', $servers);
         return $this;
     }
 
@@ -63,7 +54,7 @@ class ShareCacheServiceManager
     public function mock(array $servers)
     {
         $this->mocking = true;
-        $this->driver = new ArrayDriver();
+        $this->store = resolve(ArrayStore::class);
         return $this->setServers($servers);
     }
 
@@ -72,13 +63,14 @@ class ShareCacheServiceManager
         return $this->mocking;
     }
 
-
-    public function getDriver()
+    public function getStore()
     {
-        if (!$this->driver) {
-            $this->driver = \Redis::connection();
+        if (!$this->store) {
+            $this->store = tap(resolve(RedisStore::class), function ($store) {
+                $store->setPrefix($this->prefix);
+            });
         }
-        return $this->driver;
+        return $this->store;
     }
 
     public function getConfig($name = null, $default = null)
@@ -91,8 +83,14 @@ class ShareCacheServiceManager
 
     public function getModels()
     {
-        $models = $this->getConfig('models', []);
+        $models = array_map(function ($item) {
+            return is_array($item) ? $item['class'] : $item;
+        }, $this->getConfig('models', []));
+
         foreach ($this->getConfig('repositories', []) as $repository) {
+            if (is_array($repository)) {
+                $repository = $repository['class'];
+            }
             $models = array_merge($models, Util::getRepositoryProviders($repository));
         }
         return array_unique($models);
@@ -108,9 +106,9 @@ class ShareCacheServiceManager
         if ($name === null) {
             $name = $this->getConfig('name');
         }
-        $servers = $this->getServers();
 
         if (empty($this->serverInstances[$name])) {
+            $servers = $this->getServers();
             if (empty($servers[$name])) {
                 throw new ShareCacheException("share cache server: $name not define.");
             }

@@ -35,6 +35,11 @@ class ShareCacheService
         return $this->config['url'];
     }
 
+    public function getObjects()
+    {
+        return $this->config['objects'];
+    }
+
     public function getManager()
     {
         return $this->manager;
@@ -43,6 +48,13 @@ class ShareCacheService
     public function isRemote()
     {
         return !$this->manager->isCurrentServer($this->getName());
+    }
+
+    public function flush()
+    {
+        foreach ($this->config['objects'] as $key => $object) {
+            $this->object($key)->flush();
+        }
     }
 
     public function object($name)

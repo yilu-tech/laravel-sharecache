@@ -11,14 +11,11 @@ return [
 
     'url' => env('APP_URL'),
 
-    'cache' => [
-        'prefix' => 'sharecache',
-        'ttl' => 1209600
-    ],
-
     'route_option' => [
 
     ],
+
+    'ttl' => 1209600,
 
     'models' => [       // 'alias' => 'class'
 

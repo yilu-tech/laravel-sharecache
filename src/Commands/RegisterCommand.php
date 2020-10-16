@@ -61,7 +61,7 @@ class RegisterCommand extends Command
         $servers = $manager->getServers();
 
         if (isset($servers[$name])) {
-            $this->removeObjects($manager, $name, array_diff_key($servers[$name]['objects'] ?? [], $objects));
+            $this->removeObjects($manager->service($name), array_diff_key($servers[$name]['objects'] ?? [], $objects));
         }
 
         $servers[$name] = compact('url', 'objects');
@@ -71,15 +71,10 @@ class RegisterCommand extends Command
         $this->info('register success.');
     }
 
-    /**
-     * @param ShareCacheServiceManager $manager
-     * @param $server
-     * @param $objects
-     */
-    protected function removeObjects($manager, $server, $objects)
+    protected function removeObjects($server, $objects)
     {
         foreach ($objects as $name => $object) {
-            $manager->getDriver()->del([$manager->applyPrefix("$server:$name")]);
+            $server->object($name)->flush();
             $this->info("remove model $name.");
         }
     }
@@ -87,11 +82,20 @@ class RegisterCommand extends Command
     public function getObjects($config)
     {
         $objects = array();
+        $defaultTtl = $config['ttl'] ?? 86400 * 30;
         foreach ($config['models'] ?? [] as $name => $model) {
-            $objects[$name] = ['type' => 'model', 'class' => $model];
+            if (is_array($model)) {
+                $model = $model['class'];
+                $ttl = $model['ttl'] ?? $defaultTtl;
+            }
+            $objects[$name] = ['type' => 'model', 'class' => $model, 'ttl' => $ttl ?? $defaultTtl];
         }
         foreach ($config['repositories'] ?? [] as $name => $repository) {
-            $objects[$name] = ['type' => 'repository', 'class' => $repository, 'models' => Util::getRepositoryProviders($repository)];
+            if (is_array($repository)) {
+                $repository = $repository['class'];
+                $ttl = $repository['ttl'] ?? $defaultTtl;
+            }
+            $objects[$name] = ['type' => 'repository', 'class' => $repository, 'models' => Util::getRepositoryProviders($repository), 'ttl' => $ttl ?? $defaultTtl];
         }
         return $objects;
     }
