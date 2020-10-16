@@ -72,16 +72,14 @@ class ShareCacheObject
             return $keys;
         }
 
-        $keys = array_values(array_unique($keys));
+        $values = $this->store->many(array_unique($keys));
 
-        $values = $this->store->many($keys);
-
-        foreach ($values as $key => &$value) {
+        foreach ($values as $key => $value) {
             if ($value === null) {
-                $value = $this->put($keys[$key]);
+                $values[$key] = $this->put($key);
             }
         }
-        return array_combine($keys, $values);
+        return $values;
     }
 
     public function set($key, $value = null)
@@ -164,7 +162,7 @@ class ShareCacheObject
         }
         if ($target instanceof Model) {
             $data = $target->newQuery()->find($key);
-            return $data ? $data->toJson() : null;
+            return $data ? $data->toArray() : null;
         }
         throw new ShareCacheException('model or repository serialization function not define.');
     }
