@@ -15,6 +15,8 @@ return [
 
     ],
 
+    'database' => 'default',
+
     'ttl' => 1209600,
 
     'models' => [       // 'alias' => 'class'

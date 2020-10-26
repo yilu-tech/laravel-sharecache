@@ -17,6 +17,8 @@ class ShareCacheService
      */
     protected $manager;
 
+    protected static $objectInstances = [];
+
     public function __construct($name, array $config, ShareCacheServiceManager $manager)
     {
         $this->name = $name;
@@ -57,25 +59,41 @@ class ShareCacheService
         }
     }
 
+    /**
+     * @param $name
+     * @return ShareCacheObject
+     * @throws ShareCacheException
+     */
     public function object($name)
     {
-        if (!isset($this->config['objects'][$name])) {
-            throw new ShareCacheException("Object $name not defined.");
+        if (empty(static::$objectInstances[$name])) {
+            if (empty($object = $this->config['objects'][$name])) {
+                throw new ShareCacheException("Share cache object[{$this->name}:$name] undefined.");
+            }
+            static::$objectInstances[$name] = new ShareCacheObject($name, $object, $this);
         }
-        return new ShareCacheObject($name, $this->config['objects'][$name], $this);
+        return static::$objectInstances[$name];
     }
 
     public function delByModel($model)
     {
         $class = get_class($model);
-
         foreach ($this->config['objects'] as $name => $object) {
             if (($object['type'] === 'model' && $object['class'] === $class) ||
-                ($object['type'] === 'repository' && in_array($class, $object['models']))) {
+                (isset($object['depends']) && in_array($class, $object['depends']))) {
                 $this->object($name)->del($model->getKey());
             }
         }
+        return $this;
+    }
 
+    public function delByEvent($event, $keys)
+    {
+        foreach ($this->config['objects'] as $name => $object) {
+            if (isset($object['events']) && in_array($event, $object['events'])) {
+                $this->object($name)->del(implode('-', $keys));
+            }
+        }
         return $this;
     }
 

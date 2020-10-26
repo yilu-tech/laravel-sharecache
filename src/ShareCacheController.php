@@ -7,8 +7,12 @@ use Illuminate\Http\Request;
 
 class ShareCacheController
 {
-    public function put(ShareCacheServiceManager $shareCacheManager, Request $request)
+    public function restore(ShareCacheServiceManager $shareCacheManager, Request $request)
     {
-        return $shareCacheManager->service()->put($request->input('name'), $request->input('key'));
+        try {
+            return $shareCacheManager->service()->object($request->input('name'))->restore($request->input('key'));
+        } catch (ShareCacheException $exception) {
+            return response(['message' => $exception->getMessage()], 501);
+        }
     }
 }

@@ -59,10 +59,10 @@ class ShowCommand extends Command
                 });
             }
             return $objects->map(function ($object, $name) use ($server, $server_name, $manager) {
-                return [$server_name, $server['url'], "$name => {$object['class']}"];
+                return [$server_name, $server['url'], $object['type'], "$name => {$object['class']}", $manager->count($server_name, $name)];
             });
         });
 
-        $this->table(['server', 'url', 'object'], $objects);
+        $this->table(['server', 'url', 'type', 'object', 'count'], $objects);
     }
 }

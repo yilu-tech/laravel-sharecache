@@ -8,6 +8,7 @@
 
 namespace YiluTech\ShareCache;
 
+use Illuminate\Support\Facades\Event;
 use YiluTech\ShareCache\Commands\FlushCommand;
 use YiluTech\ShareCache\Commands\RegisterCommand;
 use YiluTech\ShareCache\Commands\ShowCommand;
@@ -16,16 +17,12 @@ use Illuminate\Support\ServiceProvider;
 
 class ShareCacheServiceProvider extends ServiceProvider
 {
-    public function boot()
+    public function register()
     {
         $this->app->singleton(ShareCacheServiceManager::class, function ($app) {
             return new ShareCacheServiceManager(config('sharecache', []));
         });
-        $this->registerModelEvent();
-    }
 
-    public function register()
-    {
         if ($this->app->runningInConsole()) {
             $this->commands([
                 RegisterCommand::class,
@@ -39,13 +36,67 @@ class ShareCacheServiceProvider extends ServiceProvider
         $this->offerPublishing();
     }
 
-    protected function registerModelEvent()
+    public function boot()
     {
-        foreach (app(ShareCacheServiceManager::class)->getModels() as $model) {
-            $model::created([ModelEventListener::class, 'created']);
-            $model::updated([ModelEventListener::class, 'updated']);
-            $model::deleted([ModelEventListener::class, 'deleted']);
+        $this->registerFlushEvent();
+    }
+
+    protected function registerFlushEvent()
+    {
+        if (empty($config = $this->getCacheConfig())) {
+            return;
         }
+
+        [$models, $events] = $this->getCacheFlushEvents($config);
+
+        $listener = function ($model) {
+            app(ShareCacheServiceManager::class)->service()->delByModel($model);
+        };
+        foreach ($models as $model) {
+            $model::created($listener);
+            $model::updated($listener);
+            $model::deleted($listener);
+        }
+
+        foreach ($events as $event) {
+            Event::listen($event, function () use ($event) {
+                app(ShareCacheServiceManager::class)->service()->delByEvent($event, func_get_args());
+            });
+        }
+    }
+
+    protected function getCacheConfig()
+    {
+        $path = $this->app->bootstrapPath('cache/sharecache.php');
+
+        if (file_exists($path)) {
+            return require $path;
+        }
+
+        return tap(app(ShareCacheServiceManager::class)->getServers(null) ?? [], function ($config) use ($path) {
+            app(\Illuminate\Filesystem\Filesystem::class)->put(
+                $path, '<?php return ' . var_export($config, true) . ';' . PHP_EOL
+            );
+        });
+    }
+
+    protected function getCacheFlushEvents($config)
+    {
+        $models = [];
+        $events = [];
+        foreach ($config['objects'] as $key => $object) {
+            if ($object['type'] === 'model') {
+                $models[] = $object['class'];
+            } else {
+                if (!empty($object['depends'])) {
+                    $models = array_merge($models, $object['depends']);
+                }
+                if (!empty($object['events'])) {
+                    $events = array_merge($events, $object['events']);
+                }
+            }
+        }
+        return [array_unique($models), array_unique($events)];
     }
 
     protected function registerRoute()
@@ -56,7 +107,7 @@ class ShareCacheServiceProvider extends ServiceProvider
         $options = array_merge($defaultOptions, $this->app['config']['sharecache']['route_option'] ?? []);
 
         Route::group($options, function ($router) {
-            Route::post('sharecache/put', 'ShareCacheController@put')->name('sharecache.put');
+            Route::get('sharecache/restore', 'ShareCacheController@restore')->name('sharecache.restore');
         });
     }
 

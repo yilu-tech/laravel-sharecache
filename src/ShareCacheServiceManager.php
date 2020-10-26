@@ -31,10 +31,25 @@ class ShareCacheServiceManager
         return $this;
     }
 
-    public function getServers()
+    public function cacheable()
+    {
+        return !empty($this->config['objects']) || !empty($this->config['repositories']);
+    }
+
+    public function getServers($name = false)
     {
         if (!$this->servers) {
             $this->servers = $this->getStore()->get('services') ?: [];
+        }
+
+        if ($name !== false) {
+            if (!empty($name)) {
+                return $this->servers[$name] ?? null;
+            }
+            if (!$this->cacheable()) {
+                return null;
+            }
+            return $this->servers[$this->getConfig('name')] ?? null;
         }
         return $this->servers;
     }
@@ -68,6 +83,7 @@ class ShareCacheServiceManager
         if (!$this->store) {
             $this->store = tap(resolve(RedisStore::class), function ($store) {
                 $store->setPrefix($this->prefix);
+                $store->setConnection($this->getConfig('database', 'default'));
             });
         }
         return $this->store;
@@ -79,21 +95,6 @@ class ShareCacheServiceManager
             return $this->config;
         }
         return $this->config[$name] ?? $default;
-    }
-
-    public function getModels()
-    {
-        $models = array_map(function ($item) {
-            return is_array($item) ? $item['class'] : $item;
-        }, $this->getConfig('models', []));
-
-        foreach ($this->getConfig('repositories', []) as $repository) {
-            if (is_array($repository)) {
-                $repository = $repository['class'];
-            }
-            $models = array_merge($models, Util::getRepositoryProviders($repository));
-        }
-        return array_unique($models);
     }
 
     /**
@@ -108,11 +109,10 @@ class ShareCacheServiceManager
         }
 
         if (empty($this->serverInstances[$name])) {
-            $servers = $this->getServers();
-            if (empty($servers[$name])) {
-                throw new ShareCacheException("share cache server: $name not define.");
+            if (empty($config = $this->getServers($name))) {
+                throw new ShareCacheException("Share cache server[$name] undefined.");
             }
-            $this->serverInstances[$name] = new ShareCacheService($name, $servers[$name], $this);
+            $this->serverInstances[$name] = new ShareCacheService($name, $config, $this);
         }
 
         return $this->serverInstances[$name];

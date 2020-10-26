@@ -3,13 +3,10 @@
 namespace YiluTech\ShareCache;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
 use Illuminate\Contracts\Cache\Store;
-use Illuminate\Database\Eloquent\Model;
 
-/**
- * Class SharedCache
- *
- */
+
 class ShareCacheObject
 {
     protected $name;
@@ -31,7 +28,8 @@ class ShareCacheObject
         $this->name = $name;
         $this->config = $config;
         $this->service = $service;
-        $this->store = $service->getManager()->getStore()->tags($service->getName() . ':' . $name);
+
+        $this->store = $service->getManager()->getStore()->tags($this->getName());
     }
 
     public function getName()
@@ -44,42 +42,38 @@ class ShareCacheObject
         return $this->store;
     }
 
-    public function get($key)
+    public function get($key = null)
     {
         if (is_array($key)) {
             return $this->getMany($key);
         }
 
-        if ($key === null || $key === '') {
-            return null;
+        if ($key === null) {
+            $key = 'data';
         }
 
         $value = $this->store->get($key);
 
         if ($value === null) {
-            $value = $this->put($key);
+            $value = $this->restore($key);
         }
         return $value;
     }
 
     public function getMany($keys)
     {
-        $keys = array_filter($keys, function ($key) {
-            return $key !== null && $key !== '';
-        });
-
         if (empty($keys)) {
             return $keys;
         }
 
-        $values = $this->store->many(array_unique($keys));
+        $values = $this->store->many($keys);
 
         foreach ($values as $key => $value) {
             if ($value === null) {
-                $values[$key] = $this->put($key);
+                $values[$key] = $this->restore($key);
             }
         }
-        return $values;
+        return array_combine($keys, $values);
     }
 
     public function set($key, $value = null)
@@ -94,7 +88,7 @@ class ShareCacheObject
 
     public function has($key)
     {
-        return $this->store->get($key);
+        return $this->store->has($key);
     }
 
     public function del($key)
@@ -107,39 +101,47 @@ class ShareCacheObject
         return $this->store->flush();
     }
 
-    public function put($key)
+    public function count()
+    {
+        return $this->store->count();
+    }
+
+    public function restore($key)
     {
         return $this->service->isRemote()
-            ? $this->remoteSet($key)
-            : $this->localSet($key);
+            ? $this->remoteRestore($key)
+            : $this->localRestore($key);
     }
 
-    protected function localSet($key)
+    protected function localRestore($key)
     {
-        $data = $this->getObjectData($key);
-        if ($data) {
-            $this->set($key, $data);
-        }
-        return $data;
+        return tap($this->getOriginal($key), function ($value) use ($key) {
+            if ($value === null) {
+                throw new ShareCacheException(sprintf('Share cache [%s:%s] value can not be bull', $this->getName(), $key));
+            }
+            $this->set($key, $value);
+        });
     }
 
-    protected function remoteSet($key)
+    protected function remoteRestore($key)
     {
         try {
-            $uri = $this->service->getUrl() . '/sharecache/put';
-            $content = (new Client())->post($uri, [
-                'json' => [
+            $uri = $this->service->getUrl() . '/sharecache/restore';
+            $content = (new Client())->get($uri, [
+                'query' => [
                     'name' => $this->name,
                     'key' => $key
                 ],
-                'header' => [
-                    'Accept' => 'application/json'
-                ]
+                'header' => ['Accept' => 'application/json']
             ])->getBody()->getContents();
-        } catch (\Exception $exception) {
-            throw new ShareCacheException('set remote error.');
+            return json_decode($content, JSON_OBJECT_AS_ARRAY);
+        } catch (RequestException $exception) {
+            if ($exception->getCode() === 501) {
+                $result = json_decode($exception->getResponse()->getBody()->getContents(), JSON_OBJECT_AS_ARRAY);
+                throw new ShareCacheException($result['message'], 0, $exception);
+            }
+            throw $exception;
         }
-        return $content;
     }
 
     /**
@@ -147,23 +149,22 @@ class ShareCacheObject
      * @return false|string|null
      * @throws ShareCacheException
      */
-    protected function getObjectData($key)
+    protected function getOriginal($key)
     {
-        $target = app($this->config['class']);
-        if (method_exists($target, 'getShareCacheData')) {
-            $data = $target->getShareCacheData($key);
-            if ($data === null || $data === false) {
-                return null;
-            }
-            if (is_object($data)) {
-                throw new ShareCacheException('model or repository store data type error.');
-            }
-            return $data;
+        switch ($this->config['type']) {
+            case 'model':
+                $data = resolve($this->config['class'])->newQuery()->find($key);
+                return $data ? $data->toArray() : null;
+            case 'array':
+                $keys = explode('-', $key);
+                if (count($this->config['keys']) !== count($keys)) {
+                    throw new ShareCacheException(sprintf('Invalid object[%s] key[%s], should define as [%s].', $this->getName(), $key, implode('-', $this->config['keys'])));
+                }
+                return app()->call($this->config['class'], array_combine($this->config['keys'], $keys));
+            case 'object':
+                return app()->call($this->config['class']);
+            default:
+                throw new ShareCacheException(sprintf('Invalid object[%s] type.', $this->getName()));
         }
-        if ($target instanceof Model) {
-            $data = $target->newQuery()->find($key);
-            return $data ? $data->toArray() : null;
-        }
-        throw new ShareCacheException('model or repository serialization function not define.');
     }
 }
