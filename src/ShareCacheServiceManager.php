@@ -9,6 +9,9 @@ class ShareCacheServiceManager
 {
     protected $servers;
 
+    /**
+     * @var Config
+     */
     protected $config;
 
     protected $prefix;
@@ -19,21 +22,21 @@ class ShareCacheServiceManager
 
     protected $store;
 
-    public function __construct($config = array())
+    public function __construct(Config $config)
     {
         $this->config = $config;
-        $this->setPrefix($this->getConfig('prefix', 'sharecache'));
+        $this->setPrefix($config->get('prefix', 'sharecache'));
+    }
+
+    public function getConfig($name = null, $default = null)
+    {
+        return $name === null ? $this->config : $this->config->get($name, $default);
     }
 
     public function setPrefix($name)
     {
         $this->prefix = trim($name, ':');
         return $this;
-    }
-
-    public function cacheable()
-    {
-        return !empty($this->config['objects']) || !empty($this->config['repositories']);
     }
 
     public function getServers($name = false)
@@ -45,9 +48,6 @@ class ShareCacheServiceManager
         if ($name !== false) {
             if (!empty($name)) {
                 return $this->servers[$name] ?? null;
-            }
-            if (!$this->cacheable()) {
-                return null;
             }
             return $this->servers[$this->getConfig('name')] ?? null;
         }
@@ -63,7 +63,7 @@ class ShareCacheServiceManager
 
     public function isCurrentServer($name)
     {
-        return $this->mocking || $this->config['name'] == $name;
+        return $this->mocking || $this->getConfig('name') == $name;
     }
 
     public function mock(array $servers)
@@ -87,14 +87,6 @@ class ShareCacheServiceManager
             });
         }
         return $this->store;
-    }
-
-    public function getConfig($name = null, $default = null)
-    {
-        if ($name === null) {
-            return $this->config;
-        }
-        return $this->config[$name] ?? $default;
     }
 
     /**

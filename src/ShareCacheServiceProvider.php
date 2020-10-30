@@ -20,7 +20,8 @@ class ShareCacheServiceProvider extends ServiceProvider
     public function register()
     {
         $this->app->singleton(ShareCacheServiceManager::class, function ($app) {
-            return new ShareCacheServiceManager(config('sharecache', []));
+            $config = new Config(config('sharecache', []));
+            return new ShareCacheServiceManager($config);
         });
 
         if ($this->app->runningInConsole()) {
@@ -38,9 +39,7 @@ class ShareCacheServiceProvider extends ServiceProvider
 
     public function boot()
     {
-        if (env('APP_ENV') !== 'cicd') {
-            $this->registerFlushEvent();
-        }
+        $this->registerFlushEvent();
     }
 
     protected function registerFlushEvent()
@@ -75,7 +74,7 @@ class ShareCacheServiceProvider extends ServiceProvider
             return require $path;
         }
 
-        return tap(app(ShareCacheServiceManager::class)->getServers(null) ?? [], function ($config) use ($path) {
+        return tap(app(ShareCacheServiceManager::class)->getConfig()->cacheable(), function ($config) use ($path) {
             app(\Illuminate\Filesystem\Filesystem::class)->put(
                 $path, '<?php return ' . var_export($config, true) . ';' . PHP_EOL
             );

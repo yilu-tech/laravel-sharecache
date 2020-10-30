@@ -5,6 +5,7 @@ namespace YiluTech\ShareCache;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Contracts\Cache\Store;
+use Illuminate\Contracts\Support\Arrayable;
 
 
 class ShareCacheObject
@@ -115,12 +116,21 @@ class ShareCacheObject
 
     protected function localRestore($key)
     {
-        return tap($this->getOriginal($key), function ($value) use ($key) {
-            if ($value === null) {
-                throw new ShareCacheException(sprintf('Share cache [%s:%s] value can not be bull', $this->getName(), $key));
-            }
-            $this->set($key, $value);
-        });
+        $value = $this->getOriginal($key);
+
+        if ($value === null) {
+            throw new ShareCacheException(sprintf('Share cache [%s:%s] value can not be bull', $this->getName(), $key));
+        }
+
+        if ($value instanceof Arrayable) {
+            $value = $value->toArray();
+        } else if (is_object($value)) {
+            $value = (array)$value;
+        }
+
+        $this->set($key, $value);
+
+        return $value;
     }
 
     protected function remoteRestore($key)
@@ -153,8 +163,7 @@ class ShareCacheObject
     {
         switch ($this->config['type']) {
             case 'model':
-                $data = resolve($this->config['class'])->newQuery()->find($key);
-                return $data ? $data->toArray() : null;
+                return resolve($this->config['class'])->newQuery()->find($key);
             case 'array':
                 $keys = explode('-', $key);
                 if (count($this->config['keys']) !== count($keys)) {
