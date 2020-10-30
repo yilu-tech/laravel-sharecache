@@ -38,7 +38,9 @@ class ShareCacheServiceProvider extends ServiceProvider
 
     public function boot()
     {
-        $this->registerFlushEvent();
+        if (!$this->app->runningInConsole()) {
+            $this->registerFlushEvent();
+        }
     }
 
     protected function registerFlushEvent()
