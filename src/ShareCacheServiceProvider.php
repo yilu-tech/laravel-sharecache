@@ -38,7 +38,7 @@ class ShareCacheServiceProvider extends ServiceProvider
 
     public function boot()
     {
-        if (!$this->app->runningInConsole()) {
+        if (env('APP_ENV') !== 'cicd') {
             $this->registerFlushEvent();
         }
     }
