@@ -39,7 +39,7 @@ class ShareCacheServiceManager
     public function getServers($name = false)
     {
         if (!$this->servers) {
-            $this->servers = $this->getStore()->get('services') ?: [];
+            $this->servers = $this->getStore()->get('servers') ?: [];
         }
 
         if ($name !== false) {
@@ -57,7 +57,7 @@ class ShareCacheServiceManager
     public function setServers(array $servers)
     {
         $this->servers = $servers;
-        $this->getStore()->forever('services', $servers);
+        $this->getStore()->forever('servers', $servers);
         return $this;
     }
 
