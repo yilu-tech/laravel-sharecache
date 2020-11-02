@@ -56,8 +56,9 @@ class ShareCacheServiceManager
 
     public function setServers(array $servers)
     {
-        $this->servers = $servers;
         $this->getStore()->forever('servers', $servers);
+        $this->servers = $servers;
+        $this->serverInstances = [];
         return $this;
     }
 
