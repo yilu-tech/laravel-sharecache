@@ -74,7 +74,7 @@ class ShareCacheObject
                 $values[$key] = $this->restore($key);
             }
         }
-        return array_combine($keys, $values);
+        return $values;
     }
 
     public function set($key, $value = null)

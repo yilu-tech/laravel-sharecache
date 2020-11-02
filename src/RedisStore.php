@@ -75,10 +75,15 @@ class RedisStore implements Store
 
     public function many(array $keys)
     {
-        $result = $this->connection()->mget(array_map(function ($key) {
+        $mapper = $this->tag ? function ($key) {
+            return $this->prefix . $this->tag . ':' . $key;
+        } : function ($key) {
             return $this->prefix . $key;
-        }, $keys));
-        return array_map([$this, 'unserialize'], $result);
+        };
+
+        $result = $this->connection()->mget(array_map($mapper, $keys));
+
+        return array_combine($keys, array_map([$this, 'unserialize'], $result));
     }
 
     public function has($key)
