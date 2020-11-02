@@ -60,7 +60,7 @@ class ShowCommand extends Command
             }
             return $objects->map(function ($object, $name) use ($server, $server_name, $manager) {
                 return [$server_name, $server['url'], $object['type'], "$name => {$object['class']}", $manager->count($server_name, $name)];
-            });
+            })->values();
         });
 
         $this->table(['server', 'url', 'type', 'object', 'count'], $objects);

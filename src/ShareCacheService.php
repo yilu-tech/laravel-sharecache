@@ -67,7 +67,8 @@ class ShareCacheService
     public function object($name)
     {
         if (empty(static::$objectInstances[$name])) {
-            if (empty($object = $this->config['objects'][$name])) {
+            $object = $this->config['objects'][$name] ?? null;
+            if (empty($object)) {
                 throw new ShareCacheException("Share cache object[{$this->name}:$name] undefined.");
             }
             static::$objectInstances[$name] = new ShareCacheObject($name, $object, $this);
@@ -79,9 +80,16 @@ class ShareCacheService
     {
         $class = get_class($model);
         foreach ($this->config['objects'] as $name => $object) {
-            if (($object['type'] === 'model' && $object['class'] === $class) ||
-                (isset($object['depends']) && in_array($class, $object['depends']))) {
+            if ($object['class'] === $class) {
                 $this->object($name)->del($model->getKey());
+            } else if (isset($object['depends'][$class])) {
+                $keyName = $object['depends'][$class];
+                if ($keyName[0] = '$') {
+                    $keyName = substr($keyName, 1);
+                    $this->object($name)->del($model->$keyName);
+                } else {
+                    $this->object($name)->del(call_user_func([$model, $keyName]));
+                }
             }
         }
         return $this;

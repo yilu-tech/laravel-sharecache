@@ -90,7 +90,7 @@ class ShareCacheServiceProvider extends ServiceProvider
                 $models[] = $object['class'];
             } else {
                 if (!empty($object['depends'])) {
-                    $models = array_merge($models, $object['depends']);
+                    $models = array_merge($models, array_keys($object['depends']));
                 }
                 if (!empty($object['events'])) {
                     $events = array_merge($events, $object['events']);

@@ -105,9 +105,9 @@ class Config
             foreach ($matches[1] as $index => $name) {
                 switch ($name) {
                     case 'depends':
-                        $class = $matches[2][$index];
-                        if (is_subclass_of($class, Model::class)) {
-                            $metadata[$name][] = $class;
+                        $segments = explode('::', $matches[2][$index]);
+                        if (is_subclass_of($segments[0], Model::class)) {
+                            $metadata[$name][ltrim($segments[0], '\\')] = $segments[1] ?? 'getKey';
                         }
                         break;
                     case 'events':
