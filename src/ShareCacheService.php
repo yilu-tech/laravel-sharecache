@@ -84,7 +84,7 @@ class ShareCacheService
                 $this->object($name)->del($model->getKey());
             } else if (isset($object['depends'][$class])) {
                 $keyName = $object['depends'][$class];
-                if ($keyName[0] = '$') {
+                if ($keyName[0] === '$') {
                     $keyName = substr($keyName, 1);
                     $this->object($name)->del($model->$keyName);
                 } else {
