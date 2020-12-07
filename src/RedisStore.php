@@ -96,10 +96,15 @@ class RedisStore implements Store
 
     public function forget($key)
     {
-        if ($this->tag) {
-            return $this->connection()->eval(RedisLuaScript::TAG_DEL, 1, $this->prefix . $this->tag, $key);
+        if (!is_array($key)) {
+            $key = [$key];
         }
-        return $this->connection()->del($this->prefix . $key);
+        if ($this->tag) {
+            return $this->connection()->eval(RedisLuaScript::TAG_DEL, 1, $this->prefix . $this->tag, ...$key);
+        }
+        return $this->connection()->del(array_map(function ($key) {
+            return $this->prefix . $key;
+        }, $key));
     }
 
     public function increment($key, $value = 1)

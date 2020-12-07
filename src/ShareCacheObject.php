@@ -119,7 +119,7 @@ class ShareCacheObject
         $value = $this->getOriginal($key);
 
         if ($value === null) {
-            throw new ShareCacheException(sprintf('Share cache [%s:%s] value can not be bull', $this->getName(), $key));
+            throw new ShareCacheException(sprintf('Share cache [%s:%s] value can not be null', $this->getName(), $key));
         }
 
         if ($value instanceof Arrayable) {

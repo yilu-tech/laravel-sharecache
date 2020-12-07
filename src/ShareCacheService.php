@@ -2,6 +2,8 @@
 
 namespace YiluTech\ShareCache;
 
+use Illuminate\Database\Events\TransactionCommitted;
+
 /**
  * Class SharedCache
  *
@@ -16,6 +18,8 @@ class ShareCacheService
      * @var ShareCacheServiceManager
      */
     protected $manager;
+
+    protected $delKeys = [];
 
     protected static $objectInstances = [];
 
@@ -81,14 +85,14 @@ class ShareCacheService
         $class = get_class($model);
         foreach ($this->config['objects'] as $name => $object) {
             if ($object['class'] === $class) {
-                $this->object($name)->del($model->getKey());
+                $this->removeObjectKey($name, $model->getKey());
             } else if (isset($object['depends'][$class])) {
                 $keyName = $object['depends'][$class];
                 if ($keyName[0] === '$') {
                     $keyName = substr($keyName, 1);
-                    $this->object($name)->del($model->$keyName);
+                    $this->removeObjectKey($name, $model->$keyName);
                 } else {
-                    $this->object($name)->del(call_user_func([$model, $keyName]));
+                    $this->removeObjectKey($name, call_user_func([$model, $keyName]));
                 }
             }
         }
@@ -103,6 +107,23 @@ class ShareCacheService
             }
         }
         return $this;
+    }
+
+    protected function removeObjectKey($object, $key)
+    {
+        if (\DB::transactionLevel() > 0) {
+            if (empty($this->delKeys)) {
+                \Event::listen(TransactionCommitted::class, function () {
+                    foreach ($this->delKeys as $obj => $keys) {
+                        $this->object($obj)->del($keys);
+                    }
+                    $this->delKeys = [];
+                });
+            }
+            $this->delKeys[$object][] = $key;
+        } else {
+            $this->object($object)->del($key);
+        }
     }
 
     public function __call($name, $arguments)
