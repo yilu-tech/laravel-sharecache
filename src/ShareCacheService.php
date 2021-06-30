@@ -25,7 +25,7 @@ class ShareCacheService
 
     public function __construct($name, array $config, ShareCacheServiceManager $manager)
     {
-        $this->name = $name;
+        $this->name   = $name;
         $this->config = $config;
 
         $this->manager = $manager;
@@ -65,7 +65,7 @@ class ShareCacheService
 
     /**
      * @param $name
-     * @return ShareCacheObject
+     * @return ShareCacheObject|ShareCacheMap
      * @throws ShareCacheException
      */
     public function object($name)
@@ -75,7 +75,10 @@ class ShareCacheService
             if (empty($object)) {
                 throw new ShareCacheException("Share cache object[{$this->name}:$name] undefined.");
             }
-            static::$objectInstances[$name] = new ShareCacheObject($name, $object, $this);
+            static::$objectInstances[$name]
+                = in_array($object['type'], ['object', 'repo.object'])
+                ? new ShareCacheObject($name, $object, $this)
+                : new ShareCacheMap($name, $object, $this);
         }
         return static::$objectInstances[$name];
     }
@@ -132,6 +135,11 @@ class ShareCacheService
             $object = $this->object(array_shift($arguments));
             return $object->{$name}(...$arguments);
         }
-        return $this->object($name);
+        $object = $this->object($name);
+
+        if ($object instanceof ShareCacheObject) {
+            return $object->{$name}();
+        }
+        return $object;
     }
 }

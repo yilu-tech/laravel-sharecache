@@ -165,7 +165,7 @@ class RedisStore implements Store
     protected function unserialize($value)
     {
         try {
-            return is_numeric($value) ? $value : json_decode($value, JSON_OBJECT_AS_ARRAY);
+            return is_numeric($value) ? $value : json_decode($value, true);
         } catch (\Exception $exception) {
             return null;
         }

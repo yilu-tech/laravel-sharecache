@@ -10,9 +10,19 @@ class ShareCacheController
     public function restore(ShareCacheServiceManager $shareCacheManager, Request $request)
     {
         try {
-            return $shareCacheManager->service()->object($request->input('name'))->restore($request->input('key'));
+            $keys   = $request->input('keys');
+            $object = $shareCacheManager->service()->object($request->input('name'));
+            if (is_array($keys)) {
+                return $object->restoreMany($keys);
+            }
+            if (is_null($keys)) {
+                return $object->restore();
+            }
+            return $object->restore($keys);
         } catch (ShareCacheException $exception) {
-            return response(['message' => $exception->getMessage()], 501);
+            return response(['message' => $exception->getMessage()], 406);
+        } finally {
+            return response(['message' => 'Parameter abnormal.'], 500);
         }
     }
 }

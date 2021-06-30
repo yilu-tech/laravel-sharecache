@@ -11,7 +11,7 @@ local timestamp = redis.call('TIME')[1]
 local key = KEYS[1]..':'..KEYS[2]
 if ARGV[2] == 0 then
     redis.call('SET', key, ARGV[1])
-    ARGV[2] = 9999999999
+    ARGV[2] = 4294967295
 else
     redis.call('SETEX', key, ARGV[2], ARGV[1])
 end

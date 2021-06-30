@@ -26,11 +26,11 @@ class ShareCacheObject
 
     public function __construct($name, array $config, ShareCacheService $service)
     {
-        $this->name = $name;
-        $this->config = $config;
+        $this->name    = $name;
+        $this->config  = $config;
         $this->service = $service;
 
-        $this->store = $service->getManager()->getStore()->tags($this->getName());
+        $this->store = $service->getManager()->getStore();
     }
 
     public function getName()
@@ -43,83 +43,58 @@ class ShareCacheObject
         return $this->store;
     }
 
-    public function get($key = null)
+    public function key(): string
     {
-        if (is_array($key)) {
-            return $this->getMany($key);
-        }
+        return $this->getName() . ':data';
+    }
 
-        if ($key === null) {
-            $key = 'data';
-        }
-
-        $value = $this->store->get($key);
-
+    public function get()
+    {
+        $value = $this->store->get($this->key());
         if ($value === null) {
-            $value = $this->restore($key);
+            $value = $this->restore();
         }
         return $value;
     }
 
-    public function getMany($keys)
+    public function set($value)
     {
-        if (empty($keys)) {
-            return $keys;
-        }
-
-        $values = $this->store->many($keys);
-
-        foreach ($values as $key => $value) {
-            if ($value === null) {
-                $values[$key] = $this->restore($key);
-            }
-        }
-        return $values;
+        $this->store->put($this->key(), $value, $this->config['ttl']);
     }
 
-    public function set($key, $value = null)
+    public function has()
     {
-        $ttl = $this->config['ttl'] ?? 30 * 86400;
-        if (is_array($key)) {
-            $this->store->putMany($key, $ttl);
-        } else {
-            $this->store->put($key, $value, $ttl);
-        }
+        return $this->store->has($this->key());
     }
 
-    public function has($key)
+    public function del()
     {
-        return $this->store->has($key);
-    }
-
-    public function del($key)
-    {
-        return $this->store->forget($key);
+        return $this->store->forget($this->key());
     }
 
     public function flush()
     {
-        return $this->store->flush();
+        return $this->del();
     }
 
     public function count()
     {
-        return $this->store->count();
+        return $this->has() ? 1 : 0;
     }
 
-    public function restore($key)
+    public function restore()
     {
         return $this->service->isRemote()
-            ? $this->remoteRestore($key)
-            : $this->localRestore($key);
+            ? $this->remoteRestore()
+            : $this->localRestore();
     }
 
-    protected function localRestore($key)
+    protected function localRestore()
     {
-        $value = $this->getOriginal($key);
+        $value = $this->getOriginal();
 
         if ($value === null) {
-            throw new ShareCacheException(sprintf('Share cache [%s:%s] value can not be null', $this->getName(), $key));
+            throw new ShareCacheException(sprintf('Share cache object[%s] value can not be null', $this->getName()));
         }
 
         if ($value instanceof Arrayable) {
@@ -128,26 +103,23 @@ class ShareCacheObject
             $value = (array)$value;
         }
 
-        $this->set($key, $value);
+        $this->set($value);
 
         return $value;
     }
 
-    protected function remoteRestore($key)
+    protected function remoteRestore()
     {
         try {
-            $uri = $this->service->getUrl() . '/sharecache/restore';
-            $content = (new Client())->get($uri, [
-                'query' => [
-                    'name' => $this->name,
-                    'key' => $key
-                ],
-                'header' => ['Accept' => 'application/json']
+            $uri     = $this->service->getUrl() . '/sharecache/restore';
+            $content = (new Client())->post($uri, [
+                'header' => ['Accept' => 'application/json'],
+                'json'   => ['name' => $this->name],
             ])->getBody()->getContents();
-            return json_decode($content, JSON_OBJECT_AS_ARRAY);
+            return json_decode($content, true);
         } catch (RequestException $exception) {
-            if ($exception->getCode() === 501) {
-                $result = json_decode($exception->getResponse()->getBody()->getContents(), JSON_OBJECT_AS_ARRAY);
+            if ($exception->getCode() === 406) {
+                $result = json_decode($exception->getResponse()->getBody()->getContents(), true);
                 throw new ShareCacheException($result['message'], 0, $exception);
             }
             throw $exception;
@@ -159,18 +131,12 @@ class ShareCacheObject
      * @return false|string|null
      * @throws ShareCacheException
      */
-    protected function getOriginal($key)
+    protected function getOriginal()
     {
         switch ($this->config['type']) {
-            case 'model':
-                return resolve($this->config['class'])->newQuery()->find($key);
-            case 'array':
-                $keys = explode('-', $key);
-                if (count($this->config['keys']) !== count($keys)) {
-                    throw new ShareCacheException(sprintf('Invalid object[%s] key[%s], should define as [%s].', $this->getName(), $key, implode('-', $this->config['keys'])));
-                }
-                return app()->call($this->config['class'], array_combine($this->config['keys'], $keys));
             case 'object':
+                return app($this->config['class'])->get();
+            case 'repo.object':
                 return app()->call($this->config['class']);
             default:
                 throw new ShareCacheException(sprintf('Invalid object[%s] type.', $this->getName()));

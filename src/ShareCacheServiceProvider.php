@@ -105,10 +105,10 @@ class ShareCacheServiceProvider extends ServiceProvider
         $defaultOptions = [
             'namespace' => '\YiluTech\ShareCache',
         ];
-        $options = array_merge($defaultOptions, $this->app['config']['sharecache']['route_option'] ?? []);
 
+        $options = array_merge($defaultOptions, $this->app['config']['sharecache']['route_option'] ?? []);
         Route::group($options, function ($router) {
-            Route::get('sharecache/restore', 'ShareCacheController@restore')->name('sharecache.restore');
+            Route::post('sharecache/restore', 'ShareCacheController@restore')->name('sharecache.restore');
         });
     }
 

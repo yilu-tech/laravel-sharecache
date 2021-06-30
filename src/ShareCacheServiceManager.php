@@ -79,6 +79,9 @@ class ShareCacheServiceManager
         return $this->mocking;
     }
 
+    /**
+     * @return \Illuminate\Contracts\Cache\Store
+     */
     public function getStore()
     {
         if (!$this->store) {

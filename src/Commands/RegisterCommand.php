@@ -40,6 +40,7 @@ class RegisterCommand extends Command
 
     protected function setServer()
     {
+        /** @var ShareCacheServiceManager $manager */
         $manager = app(ShareCacheServiceManager::class);
         $config = $manager->getConfig()->cacheable();
 

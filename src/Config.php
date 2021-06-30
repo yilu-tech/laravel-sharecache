@@ -4,7 +4,10 @@
 namespace YiluTech\ShareCache;
 
 
+use Illuminate\Container\Container;
 use Illuminate\Database\Eloquent\Model;
+use YiluTech\ShareCache\Contracts\CacheMap;
+use YiluTech\ShareCache\Contracts\CacheObject;
 
 class Config
 {
@@ -18,8 +21,8 @@ class Config
     public function cacheable()
     {
         return [
-            'url' => $this->get('url'),
-            'name' => $this->get('name'),
+            'url'     => $this->get('url'),
+            'name'    => $this->get('name'),
             'objects' => $this->getObjects()
         ];
     }
@@ -39,6 +42,10 @@ class Config
             $objects = $this->parseModels($models, $defaultTtl);
         }
 
+        if (!empty($classes = $this->get('objects'))) {
+            $objects = array_merge($objects, $this->parseObjects($classes, $defaultTtl));
+        }
+
         if (!empty($repositories = $this->get('repositories'))) {
             $objects = array_merge($objects, $this->parseRepositories($repositories, $defaultTtl));
         }
@@ -46,11 +53,33 @@ class Config
         return $objects;
     }
 
+    protected function parseObjects($classes, $defaultTtl)
+    {
+        $objects = [];
+        foreach ($classes as $class) {
+            $object = Container::getInstance()->make($class);
+            if ($object instanceof CacheMap) {
+                $type = 'map';
+            } elseif ($object instanceof CacheObject) {
+                $type = 'object';
+            } else {
+                throw new \Exception(sprintf('cache object[%s] not support.', $class));
+            }
+
+            $options = ['type' => $type, 'class' => $class, 'ttl' => $object->ttl ?? $defaultTtl];
+            if (isset($object->events)) {
+                $options['events'] = (array)$object->events;
+            }
+            $objects[$object->name()] = $options;
+        }
+        return $objects;
+    }
+
     protected function parseModels($models, $defaultTtl)
     {
         return array_map(function ($model) use ($defaultTtl) {
             if (is_array($model)) {
-                $ttl = $model['ttl'] ?? $defaultTtl;
+                $ttl   = $model['ttl'] ?? $defaultTtl;
                 $model = $model['class'];
             }
             return ['type' => 'model', 'class' => $model, 'ttl' => $ttl ?? $defaultTtl];
@@ -62,7 +91,7 @@ class Config
         $objects = [];
         foreach ($repositories as $name => $repository) {
             if (is_array($repository)) {
-                $ttl = $repository['ttl'] ?? $defaultTtl;
+                $ttl        = $repository['ttl'] ?? $defaultTtl;
                 $repository = $repository['class'];
             }
 
@@ -73,12 +102,12 @@ class Config
 
                 if (isset($metadata['sharecache'])) {
                     $objectName = is_integer($name) ? $metadata['sharecache'] : $name . '.' . $metadata['sharecache'];
-                    $object = [
-                        'type' => $method->getNumberOfParameters() ? 'array' : 'object',
+                    $object     = [
+                        'type'  => $method->getNumberOfParameters() ? 'repo.map' : 'repo.object',
                         'class' => $repository . '@' . $method->getName(),
-                        'ttl' => $metadata['ttl'] ?? $ttl ?? $defaultTtl
+                        'ttl'   => $metadata['ttl'] ?? $ttl ?? $defaultTtl
                     ];
-                    if ($object['type'] === 'array') {
+                    if ($object['type'] === 'repo.map') {
                         $object['keys'] = array_map(function ($parameter) {
                             return $parameter->getName();
                         }, $method->getParameters());
@@ -100,7 +129,7 @@ class Config
     {
         $metadata = [];
         if (($doc = $reflectionMethod->getDocComment()) &&
-            preg_match_all('/(?:@([\w\\\]+))(?:[ ]+(.+)[ ]*)?/', $doc, $matches)) {
+            preg_match_all('/(?:@([\w\\\]+))(?:[ ]+(.+)\s*)?/', $doc, $matches)) {
 
             foreach ($matches[1] as $index => $name) {
                 switch ($name) {
@@ -117,6 +146,7 @@ class Config
                         break;
                     case 'param':
                         $parts = preg_split('/[\s|]+/', $matches[2][$index]);
+
                         $metadata[$name][array_pop($parts)] = $parts;
                         break;
                     case 'return':

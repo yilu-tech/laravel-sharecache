@@ -19,6 +19,10 @@ return [
 
     'ttl' => 1209600,
 
+    'objects' => [ // object implements CacheObjet|CacheMap
+
+    ],
+
     'models' => [       // 'alias' => 'class'
 
     ],
