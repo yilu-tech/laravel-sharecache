@@ -13,7 +13,6 @@
         }
     ],
     "require": {
-        "guzzlehttp/guzzle": "^6.0",
         "predis/predis": "^1.1"
     },
     "autoload": {
