@@ -76,9 +76,9 @@ class ShareCacheService
                 throw new ShareCacheException("Share cache object[{$this->name}:$name] undefined.");
             }
             static::$objectInstances[$name]
-                = in_array($object['type'], ['object', 'repo.object'])
-                ? new ShareCacheObject($name, $object, $this)
-                : new ShareCacheMap($name, $object, $this);
+                = $object['type'] === 'map'
+                ? new ShareCacheMap($name, $object, $this)
+                : new ShareCacheObject($name, $object, $this);
         }
         return static::$objectInstances[$name];
     }
@@ -91,11 +91,10 @@ class ShareCacheService
                 $this->removeObjectKey($name, $model->getKey());
             } else if (isset($object['depends'][$class])) {
                 $keyName = $object['depends'][$class];
-                if ($keyName[0] === '$') {
-                    $keyName = substr($keyName, 1);
-                    $this->removeObjectKey($name, $model->$keyName);
+                if (substr_compare($keyName, '()', -2, 2) === 0) {
+                    $this->removeObjectKey($name, call_user_func([$model, substr($keyName, 0, -2)]));
                 } else {
-                    $this->removeObjectKey($name, call_user_func([$model, $keyName]));
+                    $this->removeObjectKey($name, $model->$keyName);
                 }
             }
         }

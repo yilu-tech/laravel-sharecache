@@ -133,10 +133,10 @@ class ShareCacheObject
      */
     protected function getOriginal()
     {
-        switch ($this->config['type']) {
-            case 'object':
+        switch ($this->config['classType']) {
+            case 'interface':
                 return app($this->config['class'])->get();
-            case 'repo.object':
+            case 'repo':
                 return app()->call($this->config['class']);
             default:
                 throw new ShareCacheException(sprintf('Invalid object[%s] type.', $this->getName()));

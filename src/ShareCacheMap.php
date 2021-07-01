@@ -100,8 +100,8 @@ class ShareCacheMap
         return $this->store->count();
     }
 
-    public function getIterator() {
-
+    public function getIterator()
+    {
 
 
     }
@@ -173,14 +173,14 @@ class ShareCacheMap
      */
     protected function getOriginal($key)
     {
-        switch ($this->config['type']) {
+        switch ($this->config['classType']) {
             case 'model':
                 $model = app($this->config['class']);
                 return is_array($key) ? $model->findMany($key)->keyBy($model->getKeyName())->all() : $model->find($key);
-            case 'map':
+            case 'interface':
                 $instance = app($this->config['class']);
                 return is_array($key) ? $instance->getMany($key) : $instance->get($key);
-            case 'repo.map':
+            case 'repo':
                 if (is_array($key)) {
                     return array_combine($key, array_map([$this, 'callRepositoryObject'], $key));
                 }

@@ -86,7 +86,7 @@ class ShareCacheServiceProvider extends ServiceProvider
         $models = [];
         $events = [];
         foreach ($config['objects'] as $key => $object) {
-            if ($object['type'] === 'model') {
+            if ($object['classType'] === 'model') {
                 $models[] = $object['class'];
             } else {
                 if (!empty($object['depends'])) {

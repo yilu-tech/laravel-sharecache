@@ -66,9 +66,12 @@ class Config
                 throw new \Exception(sprintf('cache object[%s] not support.', $class));
             }
 
-            $options = ['type' => $type, 'class' => $class, 'ttl' => $object->ttl ?? $defaultTtl];
+            $options = ['type' => $type, 'class' => $class, 'classType' => 'interface', 'ttl' => $object->ttl ?? $defaultTtl];
             if (isset($object->events)) {
                 $options['events'] = (array)$object->events;
+            }
+            if (isset($object->depends)) {
+                $options['depends'] = (array)$object->depends;
             }
             $objects[$object->name()] = $options;
         }
@@ -82,7 +85,7 @@ class Config
                 $ttl   = $model['ttl'] ?? $defaultTtl;
                 $model = $model['class'];
             }
-            return ['type' => 'model', 'class' => $model, 'ttl' => $ttl ?? $defaultTtl];
+            return ['type' => 'map', 'classType' => 'model', 'class' => $model, 'ttl' => $ttl ?? $defaultTtl];
         }, $models);
     }
 
@@ -103,11 +106,12 @@ class Config
                 if (isset($metadata['sharecache'])) {
                     $objectName = is_integer($name) ? $metadata['sharecache'] : $name . '.' . $metadata['sharecache'];
                     $object     = [
-                        'type'  => $method->getNumberOfParameters() ? 'repo.map' : 'repo.object',
-                        'class' => $repository . '@' . $method->getName(),
-                        'ttl'   => $metadata['ttl'] ?? $ttl ?? $defaultTtl
+                        'type'      => $method->getNumberOfParameters() ? 'map' : 'object',
+                        'class'     => $repository . '@' . $method->getName(),
+                        'classType' => 'repo',
+                        'ttl'       => $metadata['ttl'] ?? $ttl ?? $defaultTtl
                     ];
-                    if ($object['type'] === 'repo.map') {
+                    if ($object['type'] === 'map') {
                         $object['keys'] = array_map(function ($parameter) {
                             return $parameter->getName();
                         }, $method->getParameters());
@@ -136,7 +140,7 @@ class Config
                     case 'depends':
                         $segments = explode('::', $matches[2][$index]);
                         if (is_subclass_of($segments[0], Model::class)) {
-                            $metadata[$name][ltrim($segments[0], '\\')] = $segments[1] ?? 'getKey';
+                            $metadata[$name][ltrim($segments[0], '\\')] = $segments[1] ?? 'getKey()';
                         }
                         break;
                     case 'events':
