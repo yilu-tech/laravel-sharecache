@@ -20,11 +20,12 @@ class Config
 
     public function cacheable()
     {
+        $objects = $this->getObjects();
         return [
-            'url'     => $this->get('url'),
-            'name'    => $this->get('name'),
-            'objects' => $this->getObjects()
-        ];
+                'url'     => $this->get('url'),
+                'name'    => $this->get('name'),
+                'objects' => $objects
+            ] + $this->getEvents($objects);
     }
 
     public function get($key, $default = null)
@@ -53,6 +54,25 @@ class Config
         return $objects;
     }
 
+    protected function getEvents($objects)
+    {
+        $models = [];
+        $events = [];
+        foreach ($objects as $object) {
+            if ($object['classType'] === 'model') {
+                $models[] = $object['class'];
+            } else {
+                if (!empty($object['depends'])) {
+                    $models = array_merge($models, array_keys($object['depends']));
+                }
+                if (!empty($object['events'])) {
+                    $events = array_merge($events, $object['events']);
+                }
+            }
+        }
+        return ['models' => array_unique($models), 'events' => array_unique($events)];
+    }
+
     protected function parseObjects($classes, $defaultTtl)
     {
         $objects = [];
@@ -68,10 +88,12 @@ class Config
 
             $options = ['type' => $type, 'class' => $class, 'classType' => 'interface', 'ttl' => $object->ttl ?? $defaultTtl];
             if (isset($object->events)) {
-                $options['events'] = (array)$object->events;
+                foreach ($object->events as $event => $handler) {
+                    $options['events'][] = is_int($event) ? $handler : $event;
+                }
             }
             if (isset($object->depends)) {
-                $options['depends'] = (array)$object->depends;
+                $options['depends'] = $object->depends;
             }
             $objects[$object->name()] = $options;
         }

@@ -48,18 +48,16 @@ class ShareCacheServiceProvider extends ServiceProvider
             return;
         }
 
-        [$models, $events] = $this->getCacheFlushEvents($config);
-
         $listener = function ($model) {
             app(ShareCacheServiceManager::class)->service()->delByModel($model);
         };
-        foreach ($models as $model) {
+        foreach ($config['models'] as $model) {
             $model::created($listener);
             $model::updated($listener);
             $model::deleted($listener);
         }
 
-        foreach ($events as $event) {
+        foreach ($config['events'] as $event) {
             Event::listen($event, function () use ($event) {
                 app(ShareCacheServiceManager::class)->service()->delByEvent($event, func_get_args());
             });
@@ -79,25 +77,6 @@ class ShareCacheServiceProvider extends ServiceProvider
                 $path, '<?php return ' . var_export($config, true) . ';' . PHP_EOL
             );
         });
-    }
-
-    protected function getCacheFlushEvents($config)
-    {
-        $models = [];
-        $events = [];
-        foreach ($config['objects'] as $key => $object) {
-            if ($object['classType'] === 'model') {
-                $models[] = $object['class'];
-            } else {
-                if (!empty($object['depends'])) {
-                    $models = array_merge($models, array_keys($object['depends']));
-                }
-                if (!empty($object['events'])) {
-                    $events = array_merge($events, $object['events']);
-                }
-            }
-        }
-        return [array_unique($models), array_unique($events)];
     }
 
     protected function registerRoute()

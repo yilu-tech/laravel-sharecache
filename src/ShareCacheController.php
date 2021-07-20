@@ -21,7 +21,7 @@ class ShareCacheController
             return $object->restore($keys);
         } catch (ShareCacheException $exception) {
             return response(['message' => $exception->getMessage()], 406);
-        } finally {
+        } catch (\Exception $exception) {
             return response(['message' => 'Parameter abnormal.'], 500);
         }
     }

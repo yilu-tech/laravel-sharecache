@@ -101,11 +101,16 @@ class ShareCacheService
         return $this;
     }
 
-    public function delByEvent($event, $keys)
+    public function delByEvent($event, $payload)
     {
         foreach ($this->config['objects'] as $name => $object) {
             if (isset($object['events']) && in_array($event, $object['events'])) {
-                $this->object($name)->del(implode('-', $keys));
+                if ($object['classType'] === 'interface') {
+                    $object = app($object['class']);
+                    $object->{$object->events[$event] ?? 'handle'}(...$payload);
+                } else {
+                    $this->object($name)->del(implode('-', $payload));
+                }
             }
         }
         return $this;
